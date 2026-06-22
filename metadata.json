@@ -1,0 +1,6 @@
+{
+  "name": "Agro Goat",
+  "description": "Dashboard Agro Goat - Platform jual beli kambing berkualitas tinggi secara online.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
