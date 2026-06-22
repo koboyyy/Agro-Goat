@@ -74,166 +74,183 @@ fun MainAppShell(
                 AppTab.CHAT -> ChatScreen(viewModel)
                 AppTab.PESANAN -> OrdersScreen(viewModel)
                 AppTab.PROFIL -> ProfileScreen(viewModel)
+                AppTab.NOTIFIKASI -> NotificationScreen(viewModel)
+                AppTab.PEMBAYARAN -> PaymentScreen(viewModel)
+                AppTab.LACAK_PESANAN -> {
+                    val orderToTrack by viewModel.selectedOrderForTracking.collectAsState()
+                    orderToTrack?.let {
+                        TrackingScreen(
+                            order = it,
+                            onBack = { viewModel.setTab(AppTab.PESANAN) }
+                        )
+                    }
+                }
             }
         }
 
-        // CUSTOM FLOATING BOTTOM NAVIGATION BAR (Faithful to image, dynamic for dark theme comfort)
-        val activeColor = MaterialTheme.colorScheme.primary
-        val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.44f)
+        // CUSTOM FLOATING BOTTOM NAVIGATION BAR
+        // Hide if on specific screens to focus on the content
+        val hideNavBar = currentTab == AppTab.LACAK_PESANAN || 
+                         currentTab == AppTab.NOTIFIKASI || 
+                         currentTab == AppTab.PEMBAYARAN
 
-        Card(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars) // safe navigationBar offset to prevent overlay clipping
-                .padding(horizontal = 0.dp), // Full bleed card with safe background heights
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
-        ) {
-            Row(
+        if (!hideNavBar) {
+            val activeColor = MaterialTheme.colorScheme.primary
+            val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.44f)
+
+            Card(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .height(76.dp)
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(horizontal = 0.dp),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
             ) {
-                // TAB 1: Beranda
-                val isHomeSelected = currentTab == AppTab.BERANDA
-                Column(
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .clickable { viewModel.setTab(AppTab.BERANDA) }
-                        .testTag("nav_btn_beranda"),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .fillMaxWidth()
+                        .height(76.dp)
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = "Beranda",
-                        tint = if (isHomeSelected) activeColor else inactiveColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Beranda",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isHomeSelected) activeColor else inactiveColor
-                    )
-                }
+                    // TAB 1: Beranda
+                    val isHomeSelected = currentTab == AppTab.BERANDA
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.setTab(AppTab.BERANDA) }
+                            .testTag("nav_btn_beranda"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "Beranda",
+                            tint = if (isHomeSelected) activeColor else inactiveColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Beranda",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isHomeSelected) activeColor else inactiveColor
+                        )
+                    }
 
-                // TAB 2: Katalog
-                val isKatalogSelected = currentTab == AppTab.KATALOG
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { viewModel.setTab(AppTab.KATALOG) }
-                        .testTag("nav_btn_katalog"),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    CustomNavGridIcon(
-                        tint = if (isKatalogSelected) activeColor else inactiveColor,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Katalog",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isKatalogSelected) activeColor else inactiveColor
-                    )
-                }
-
-                // TAB 3: Chat (with active Notification Red Badge "5")
-                val isChatSelected = currentTab == AppTab.CHAT
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { viewModel.setTab(AppTab.CHAT) }
-                        .testTag("nav_btn_chat"),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        CustomNavChatIcon(
-                            tint = if (isChatSelected) activeColor else inactiveColor,
+                    // TAB 2: Katalog
+                    val isKatalogSelected = currentTab == AppTab.KATALOG
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.setTab(AppTab.KATALOG) }
+                            .testTag("nav_btn_katalog"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CustomNavGridIcon(
+                            tint = if (isKatalogSelected) activeColor else inactiveColor,
                             modifier = Modifier.size(22.dp)
                         )
-                        // Red badge with number 5
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 8.dp, y = (-6).dp)
-                                .size(15.dp)
-                                .background(Color(0xFFE53935), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "5",
-                                color = Color.White,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Katalog",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isKatalogSelected) activeColor else inactiveColor
+                        )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Chat",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isChatSelected) activeColor else inactiveColor
-                    )
-                }
 
-                // TAB 4: Pesanan
-                val isPesananSelected = currentTab == AppTab.PESANAN
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { viewModel.setTab(AppTab.PESANAN) }
-                        .testTag("nav_btn_pesanan"),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    CustomNavDocIcon(
-                        tint = if (isPesananSelected) activeColor else inactiveColor,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Pesanan",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isPesananSelected) activeColor else inactiveColor
-                    )
-                }
+                    // TAB 3: Chat
+                    val isChatSelected = currentTab == AppTab.CHAT
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.setTab(AppTab.CHAT) }
+                            .testTag("nav_btn_chat"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            CustomNavChatIcon(
+                                tint = if (isChatSelected) activeColor else inactiveColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 8.dp, y = (-6).dp)
+                                    .size(15.dp)
+                                    .background(Color(0xFFE53935), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "5",
+                                    color = Color.White,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Chat",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isChatSelected) activeColor else inactiveColor
+                        )
+                    }
 
-                // TAB 5: Profil
-                val isProfilSelected = currentTab == AppTab.PROFIL
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { viewModel.setTab(AppTab.PROFIL) }
-                        .testTag("nav_btn_profil"),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profil",
-                        tint = if (isProfilSelected) activeColor else inactiveColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Profil",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isProfilSelected) activeColor else inactiveColor
-                    )
+                    // TAB 4: Pesanan
+                    val isPesananSelected = currentTab == AppTab.PESANAN
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.setTab(AppTab.PESANAN) }
+                            .testTag("nav_btn_pesanan"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CustomNavDocIcon(
+                            tint = if (isPesananSelected) activeColor else inactiveColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Pesanan",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isPesananSelected) activeColor else inactiveColor
+                        )
+                    }
+
+                    // TAB 5: Profil
+                    val isProfilSelected = currentTab == AppTab.PROFIL
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.setTab(AppTab.PROFIL) }
+                            .testTag("nav_btn_profil"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profil",
+                            tint = if (isProfilSelected) activeColor else inactiveColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Profil",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isProfilSelected) activeColor else inactiveColor
+                        )
+                    }
                 }
             }
         }

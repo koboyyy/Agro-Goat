@@ -75,7 +75,7 @@ fun HomeScreen(
                     isDarkTheme = isDarkTheme,
                     onThemeToggle = { viewModel.toggleTheme() },
                     onNotificationClick = {
-                        Toast.makeText(context, "Anda memiliki 3 notifikasi pengiriman penting!", Toast.LENGTH_SHORT).show()
+                        viewModel.setTab(AppTab.NOTIFIKASI)
                     },
                     onProfileClick = {
                         viewModel.setTab(AppTab.PROFIL)
@@ -146,7 +146,7 @@ fun HomeScreen(
                         contentPadding = PaddingValues(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(GoatCategory.values()) { cat ->
+                        items(GoatCategory.entries) { cat ->
                             CategoryCardItem(
                                 category = cat,
                                 isSelected = selectedHomeCategory == cat,
@@ -344,7 +344,7 @@ fun HomeScreen(
                     color = Color.Gray
                 )
 
-                Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
 
                 // INTERACTIVE WEIGHT SLIDER SECTION
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

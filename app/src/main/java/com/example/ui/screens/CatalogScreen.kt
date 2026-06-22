@@ -4,6 +4,8 @@ import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -176,7 +178,7 @@ fun CatalogScreen(
                         .padding(bottom = 10.dp)
                 ) {
                     
-                    // Search and Filter Row (exactly matching screenshot)
+                    // Search and Filter Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -184,7 +186,6 @@ fun CatalogScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Cozy rounded white search input
                         TextField(
                             value = searchQuery,
                             onValueChange = { viewModel.setSearchQuery(it) },
@@ -219,17 +220,24 @@ fun CatalogScreen(
                             singleLine = true
                         )
 
-                        // Forest Green Filter Box (repurposed to toggle Favorite view or general reset)
+                        // Forest Green Filter Box
+                        val filterInteractionSource = remember { MutableInteractionSource() }
+                        val isFilterPressed by filterInteractionSource.collectIsPressedAsState()
+
                         IconButton(
                             onClick = { 
                                 viewModel.toggleFavoritesOnly()
                                 val msg = if (!showFavsOnly) "Menampilkan Kambing Favorit" else "Menampilkan Semua Kambing"
                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             },
+                            interactionSource = filterInteractionSource,
                             modifier = Modifier
                                 .size(50.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(
+                                    if (isFilterPressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.85f) 
+                                    else MaterialTheme.colorScheme.primary
+                                )
                                 .testTag("catalog_green_filter_btn")
                         ) {
                             Icon(
@@ -243,7 +251,7 @@ fun CatalogScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Gender Category Row with Jantan/Betina/Lainnya filters (exactly matching screenshot)
+                    // Gender Category Row with Jantan/Betina/Lainnya filters
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -260,27 +268,11 @@ fun CatalogScreen(
                         )
 
                         items(genders) { (genderVal, label) ->
-                            val isSelected = selectedGender == genderVal
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
-                                    )
-                                    .clickable { selectedGender = genderVal }
-                                    .then(
-                                        if (!isSelected) Modifier.shadow(1.dp, CircleShape) else Modifier
-                                    )
-                                    .padding(horizontal = 22.dp, vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) Color.White else Color.Gray,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 14.sp
-                                )
-                            }
+                            FilterTab(
+                                label = label,
+                                isSelected = selectedGender == genderVal,
+                                onClick = { selectedGender = genderVal }
+                            )
                         }
                     }
 
@@ -296,35 +288,11 @@ fun CatalogScreen(
                     ) {
                         // 1. Harga Filter
                         Box(modifier = Modifier.weight(1f)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .shadow(1.dp, RoundedCornerShape(12.dp))
-                                    .clickable { showPriceDropdown = true }
-                                    .padding(vertical = 10.dp, horizontal = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = if (selectedPriceFilter == "Semua") "Harga" else selectedPriceFilter,
-                                        color = if (selectedPriceFilter == "Semua") Color.Gray else MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = null,
-                                        tint = Color.Gray,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
+                            FilterDropdown(
+                                label = "Harga",
+                                selectedValue = selectedPriceFilter,
+                                onClick = { showPriceDropdown = true }
+                            )
                             DropdownMenu(
                                 expanded = showPriceDropdown,
                                 onDismissRequest = { showPriceDropdown = false },
@@ -344,35 +312,11 @@ fun CatalogScreen(
 
                         // 2. Umur Filter
                         Box(modifier = Modifier.weight(1f)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .shadow(1.dp, RoundedCornerShape(12.dp))
-                                    .clickable { showAgeDropdown = true }
-                                    .padding(vertical = 10.dp, horizontal = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = if (selectedAgeFilter == "Semua") "Umur" else selectedAgeFilter,
-                                        color = if (selectedAgeFilter == "Semua") Color.Gray else MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = null,
-                                        tint = Color.Gray,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
+                            FilterDropdown(
+                                label = "Umur",
+                                selectedValue = selectedAgeFilter,
+                                onClick = { showAgeDropdown = true }
+                            )
                             DropdownMenu(
                                 expanded = showAgeDropdown,
                                 onDismissRequest = { showAgeDropdown = false },
@@ -392,35 +336,11 @@ fun CatalogScreen(
 
                         // 3. Berat Filter
                         Box(modifier = Modifier.weight(1f)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .shadow(1.dp, RoundedCornerShape(12.dp))
-                                    .clickable { showWeightDropdown = true }
-                                    .padding(vertical = 10.dp, horizontal = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = if (selectedWeightFilter == "Semua") "Berat" else selectedWeightFilter,
-                                        color = if (selectedWeightFilter == "Semua") Color.Gray else MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = null,
-                                        tint = Color.Gray,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
+                            FilterDropdown(
+                                label = "Berat",
+                                selectedValue = selectedWeightFilter,
+                                onClick = { showWeightDropdown = true }
+                            )
                             DropdownMenu(
                                 expanded = showWeightDropdown,
                                 onDismissRequest = { showWeightDropdown = false },
@@ -440,35 +360,11 @@ fun CatalogScreen(
 
                         // 4. Lokasi Filter
                         Box(modifier = Modifier.weight(1f)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .shadow(1.dp, RoundedCornerShape(12.dp))
-                                    .clickable { showLocationDropdown = true }
-                                    .padding(vertical = 10.dp, horizontal = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = if (selectedLocationFilter == "Semua") "Lokasi" else selectedLocationFilter,
-                                        color = if (selectedLocationFilter == "Semua") Color.Gray else MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = null,
-                                        tint = Color.Gray,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
+                            FilterDropdown(
+                                label = "Lokasi",
+                                selectedValue = selectedLocationFilter,
+                                onClick = { showLocationDropdown = true }
+                            )
                             DropdownMenu(
                                 expanded = showLocationDropdown,
                                 onDismissRequest = { showLocationDropdown = false },
@@ -503,12 +399,19 @@ fun CatalogScreen(
                             CatalogSort.BOBOT_TERBESAR -> "Terberat"
                         }
 
+                        val sortInteractionSource = remember { MutableInteractionSource() }
+                        val isSortPressed by sortInteractionSource.collectIsPressedAsState()
+
                         Box(
                             modifier = Modifier
                                 .shadow(1.dp, RoundedCornerShape(12.dp))
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surface)
-                                .clickable { showSortingMenu = true }
+                                .background(if (isSortPressed) Color(0xFFF5F5F5) else MaterialTheme.colorScheme.surface)
+                                .clickable(
+                                    interactionSource = sortInteractionSource,
+                                    indication = null,
+                                    onClick = { showSortingMenu = true }
+                                )
                                 .padding(horizontal = 14.dp, vertical = 10.dp)
                         ) {
                             Row(
@@ -598,7 +501,7 @@ fun CatalogScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                CatalogSort.values().forEach { sorting ->
+                CatalogSort.entries.forEach { sorting ->
                     val sortingLabel = when (sorting) {
                         CatalogSort.TERBARU -> "Terbaru / Pilihan Utama"
                         CatalogSort.HARGA_RENDAH -> "Harga: Terendah ke Tertinggi"
@@ -789,6 +692,112 @@ fun CatalogScreen(
                         Text("Pesan Sekarang", fontWeight = FontWeight.Bold)
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Custom Tab component matching screenshot style (Active Green, Inactive Light Gray)
+ */
+@Composable
+fun FilterTab(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    // Exact colors from screenshot: 
+    // Active: Dark Green (Brand Theme), Inactive: Very light silver/gray
+    val backgroundColor = when {
+        isSelected -> MaterialTheme.colorScheme.primary
+        isPressed -> MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+        else -> Color(0xFFDCDCDC) // Light gray matching screenshot
+    }
+
+    val textColor = when {
+        isSelected || isPressed -> Color.White
+        else -> Color(0xFF666666) // Darker gray for inactive text readability
+    }
+    
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null, 
+                onClick = onClick
+            )
+            .padding(horizontal = 22.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
+    }
+}
+
+/**
+ * Custom Dropdown button matching screenshot style (Gray outer with white inset box)
+ */
+@Composable
+fun FilterDropdown(
+    label: String,
+    selectedValue: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    // The "outer" part is gray, the "inner" part is white
+    val outerColor = if (isPressed) Color(0xFFC0C0C0) else Color(0xFFDCDCDC)
+    
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(outerColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(6.dp), // This padding creates the "border" effect
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.White)
+                .padding(vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                Text(
+                    text = if (selectedValue == "Semua") label else selectedValue,
+                    color = Color(0xFF666666),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    maxLines = 1
+                )
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = Color(0xFF666666),
+                    modifier = Modifier.size(14.dp)
+                )
             }
         }
     }

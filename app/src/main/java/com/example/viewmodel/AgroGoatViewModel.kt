@@ -17,7 +17,10 @@ enum class AppTab {
     KATALOG,
     CHAT,
     PESANAN,
-    PROFIL
+    PROFIL,
+    LACAK_PESANAN,
+    NOTIFIKASI,
+    PEMBAYARAN
 }
 
 enum class CatalogSort {
@@ -40,6 +43,13 @@ class AgroGoatViewModel : ViewModel() {
     // Tab Navigation
     private val _currentTab = MutableStateFlow(AppTab.BERANDA)
     val currentTab: StateFlow<AppTab> = _currentTab.asStateFlow()
+
+    // State for specific flows
+    private val _selectedOrderForTracking = MutableStateFlow<OrderItem?>(null)
+    val selectedOrderForTracking: StateFlow<OrderItem?> = _selectedOrderForTracking.asStateFlow()
+
+    private val _selectedOrderForPayment = MutableStateFlow<OrderItem?>(null)
+    val selectedOrderForPayment: StateFlow<OrderItem?> = _selectedOrderForPayment.asStateFlow()
 
     // User details
     private val _userName = MutableStateFlow("Eko Prasetyo")
@@ -78,15 +88,39 @@ class AgroGoatViewModel : ViewModel() {
     private val _messages = MutableStateFlow<List<MessageItem>>(emptyList())
     val messages: StateFlow<List<MessageItem>> = _messages.asStateFlow()
 
+    private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
+    val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
+
     // UI state loaders/triggerers
     init {
         setupDefaultGoats()
         setupDefaultMessages()
         setupDefaultOrders()
+        setupDefaultNotifications()
     }
 
     fun setTab(tab: AppTab) {
         _currentTab.value = tab
+    }
+
+    fun trackOrder(order: OrderItem) {
+        _selectedOrderForTracking.value = order
+        setTab(AppTab.LACAK_PESANAN)
+    }
+
+    fun openPayment(order: OrderItem) {
+        _selectedOrderForPayment.value = order
+        setTab(AppTab.PEMBAYARAN)
+    }
+
+    fun markNotificationAsRead(notifId: String) {
+        _notifications.value = _notifications.value.map {
+            if (it.id == notifId) it.copy(isRead = true) else it
+        }
+    }
+
+    fun markAllNotificationsAsRead() {
+        _notifications.value = _notifications.value.map { it.copy(isRead = true) }
     }
 
     fun updateProfile(name: String, address: String) {
@@ -149,13 +183,23 @@ class AgroGoatViewModel : ViewModel() {
         )
 
         _orders.value = listOf(newOrder) + _orders.value
-        _userBalance.value = maxOf(0L, _userBalance.value - finalPrice) // Deduct balance if possible
+        
+        // Add notification for new order
+        val newNotif = NotificationItem(
+            title = "Pesanan Dibuat",
+            message = "Pesanan ${goat.name} menunggu pembayaran transfer bank.",
+            type = NotificationType.ORDER_STATUS,
+            timestamp = "Baru saja"
+        )
+        _notifications.value = listOf(newNotif) + _notifications.value
+        
+        openPayment(newOrder)
     }
 
     /**
-     * Pays pending order
+     * Completes the payment process (manual bank transfer version)
      */
-    fun processOrderPayment(orderId: String) {
+    fun processBankTransferPayment(orderId: String) {
         _orders.value = _orders.value.map { ord ->
             if (ord.id == orderId && ord.status == OrderStatus.PENDING_PAYMENT) {
                 ord.copy(status = OrderStatus.PACKING)
@@ -163,10 +207,21 @@ class AgroGoatViewModel : ViewModel() {
                 ord
             }
         }
+
+        // Success notification
+        val notif = NotificationItem(
+            title = "Bukti Terkirim ✅",
+            message = "Bukti transfer telah diterima admin. Pesanan Anda sedang diverifikasi.",
+            type = NotificationType.ORDER_STATUS,
+            timestamp = "Baru saja"
+        )
+        _notifications.value = listOf(notif) + _notifications.value
+
+        setTab(AppTab.PESANAN)
         
-        // Simulate progress to shipment after manual click/automation
+        // Simulate progress to shipment
         viewModelScope.launch {
-            delay(5000)
+            delay(8000)
             _orders.value = _orders.value.map { ord ->
                 if (ord.id == orderId && ord.status == OrderStatus.PACKING) {
                     ord.copy(status = OrderStatus.SHIPPING)
@@ -175,6 +230,13 @@ class AgroGoatViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    /**
+     * Original balance payment (Legacy)
+     */
+    fun processOrderPayment(orderId: String) {
+        processBankTransferPayment(orderId)
     }
 
     /**
@@ -198,33 +260,21 @@ class AgroGoatViewModel : ViewModel() {
 
             val query = content.lowercase()
             val (replyText, sender) = when {
+                query.contains("bukti_transfer") || query.contains("sudah transfer") -> {
+                    Pair(
+                        "Terima kasih mas! Bukti transfer sudah kami terima. Pesanan mas sedang kami verifikasi dan akan segera masuk proses pengemasan. Tunggu update selanjutnya ya! 🙏",
+                        MessageSender.SYSTEM
+                    )
+                }
                 query.contains("ready") || query.contains("ada") -> {
                     Pair(
                         "Halo mas! Semua kambing yang ada di katalog berstatus ready dan sehat walafiat. Bisa langsung dicek detailnya di tab katalog ya.",
                         MessageSender.BREEDER_ETAWA
                     )
                 }
-                query.contains("harga") || query.contains("nego") || query.contains("diskon") -> {
-                    Pair(
-                        "Untuk harga tertera adalah harga pas pasca-timbang mas, tapi khusus pengambilan lebih dari 3 ekor, kami sediakan potongan harga khusus. Ada rencana ambil berapa ekor mas?",
-                        MessageSender.BREEDER_POTONG
-                    )
-                }
-                query.contains("kirim") || query.contains("ongkir") || query.contains("bengkalis") -> {
-                    Pair(
-                        "Kami melayani pengiriman gratis untuk area Bengkalis dan sekitarnya menggunakan mobil pickup operasional Agro Goat. Untuk luar daerah ada tambahan ongkir menyesuaikan jarak mas.",
-                        MessageSender.BREEDER_ETAWA
-                    )
-                }
-                query.contains("etawa") -> {
-                    Pair(
-                        "Kambing Etawa kami langsung dari peternakan inti mas, pakan terjaga (silase jagung & ampas tahu) sehingga postur tinggi tegap dan susunya melimpah harian.",
-                        MessageSender.BREEDER_ETAWA
-                    )
-                }
                 else -> {
                     Pair(
-                        "Baik mas, terima kasih infonya. Terkait pemesanan kambing tersebut, tim lapangan kami siap mengirimkan video live/kondisi terbaru kambing via WhatsApp jika mas berkenan. 😊",
+                        "Baik mas, tim kami akan segera merespon pesan Anda secepatnya. 😊",
                         MessageSender.BREEDER_POTONG
                     )
                 }
@@ -412,32 +462,65 @@ class AgroGoatViewModel : ViewModel() {
                 goat = goatEtawaJantan,
                 selectedWeight = 55,
                 totalPrice = 5500000,
-                status = OrderStatus.PACKING, // maps to Diproses
-                orderDate = "20 Jun 2024"
+                status = OrderStatus.PACKING,
+                orderDate = "20 Jun 2024, 08:30"
             ),
             OrderItem(
                 id = "AG-2024-0870",
                 goat = goatPEJantan,
                 selectedWeight = 40,
-                totalPrice = 3100000, // 2 ekor at 1.55M
-                status = OrderStatus.SHIPPING, // maps to Dikirim
-                orderDate = "18 Jun 2024"
+                totalPrice = 3100000,
+                status = OrderStatus.SHIPPING,
+                orderDate = "18 Jun 2024, 14:20"
             ),
             OrderItem(
                 id = "AG-2024-0869",
                 goat = goatEtawaBetina,
                 selectedWeight = 45,
                 totalPrice = 4800000,
-                status = OrderStatus.COMPLETED, // Selesai
-                orderDate = "15 Jun 2024"
+                status = OrderStatus.COMPLETED,
+                orderDate = "15 Jun 2024, 10:15"
             ),
             OrderItem(
                 id = "AG-2024-0868",
                 goat = goatBoerJantan,
                 selectedWeight = 60,
                 totalPrice = 4000000,
-                status = OrderStatus.COMPLETED, // Selesai
-                orderDate = "10 Jun 2024"
+                status = OrderStatus.COMPLETED,
+                orderDate = "10 Jun 2024, 16:45"
+            )
+        )
+    }
+
+    private fun setupDefaultNotifications() {
+        _notifications.value = listOf(
+            NotificationItem(
+                title = "Pesanan Dikirim 🚚",
+                message = "Pesanan AG-2024-0870 sedang dalam perjalanan ke lokasi Anda.",
+                type = NotificationType.ORDER_STATUS,
+                timestamp = "2 jam yang lalu",
+                isRead = false
+            ),
+            NotificationItem(
+                title = "Promo Spesial Hari Raya! 🎉",
+                message = "Dapatkan diskon hingga 20% untuk pembelian Kambing Potong khusus minggu ini.",
+                type = NotificationType.PROMO,
+                timestamp = "5 jam yang lalu",
+                isRead = false
+            ),
+            NotificationItem(
+                title = "Pembayaran Berhasil ✅",
+                message = "Pembayaran untuk pesanan AG-2024-0871 telah kami terima. Pesanan sedang diproses.",
+                type = NotificationType.ORDER_STATUS,
+                timestamp = "Kemarin",
+                isRead = true
+            ),
+            NotificationItem(
+                title = "Selamat Datang di Agro Goat!",
+                message = "Temukan berbagai jenis kambing berkualitas dengan harga terbaik langsung dari peternak.",
+                type = NotificationType.SYSTEM,
+                timestamp = "2 hari yang lalu",
+                isRead = true
             )
         )
     }

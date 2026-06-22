@@ -51,3 +51,18 @@ enum class MessageSender {
     BREEDER_ETAWA,
     BREEDER_POTONG
 }
+
+enum class NotificationType {
+    ORDER_STATUS,
+    PROMO,
+    SYSTEM
+}
+
+data class NotificationItem(
+    val id: String = UUID.randomUUID().toString(),
+    val title: String,
+    val message: String,
+    val type: NotificationType,
+    val timestamp: String,
+    val isRead: Boolean = false
+)
