@@ -40,6 +40,14 @@ class AgroGoatViewModel : ViewModel() {
         _isDarkTheme.value = !_isDarkTheme.value
     }
 
+    // Bottom bar visibility override
+    private val _hideBottomBar = MutableStateFlow(false)
+    val hideBottomBar: StateFlow<Boolean> = _hideBottomBar.asStateFlow()
+
+    fun setHideBottomBar(hide: Boolean) {
+        _hideBottomBar.value = hide
+    }
+
     // Tab Navigation
     private val _currentTab = MutableStateFlow(AppTab.BERANDA)
     val currentTab: StateFlow<AppTab> = _currentTab.asStateFlow()
@@ -294,6 +302,30 @@ class AgroGoatViewModel : ViewModel() {
             GoatItem(
                 name = "Kambing Etawa",
                 category = GoatCategory.ETAWA,
+                gender = "Betina",
+                weight = 45,
+                age = 1.5,
+                price = 3500000,
+                location = "Bengkalis",
+                description = "Kambing Etawa betina berkualitas tinggi, sangat bagus untuk indukan perah maupun pembibitan lanjutan.",
+                isNew = false,
+                isFavorite = false
+            ),
+            GoatItem(
+                name = "Kambing PE",
+                category = GoatCategory.ETAWA,
+                gender = "Betina",
+                weight = 45,
+                age = 2.0,
+                price = 4000000,
+                location = "Bengkalis",
+                description = "Kambing Peranakan Etawa betina unggulan, sehat dan siap dikawinkan.",
+                isNew = false,
+                isFavorite = false
+            ),
+            GoatItem(
+                name = "Kambing Etawa",
+                category = GoatCategory.ETAWA,
                 gender = "Jantan",
                 weight = 55,
                 age = 1.5,
@@ -375,37 +407,37 @@ class AgroGoatViewModel : ViewModel() {
             ),
             MessageItem(
                 content = "Assalamualaikum, Pak Budi. Stok Kambing Etawa tersedia?",
-                sender = MessageSender.USER,
+                sender = MessageSender.BREEDER_ETAWA,
                 timestamp = "09:15"
             ),
             MessageItem(
                 content = "Waalaikumussalam! Alhamdulillah tersedia, ada 5 ekor Etawa jantan.",
-                sender = MessageSender.BREEDER_ETAWA,
+                sender = MessageSender.USER,
                 timestamp = "09:17"
             ),
             MessageItem(
                 content = "Berapa harga per ekornya, Pak?",
-                sender = MessageSender.USER,
+                sender = MessageSender.BREEDER_ETAWA,
                 timestamp = "09:18"
             ),
             MessageItem(
                 content = "[PRODUCT_CARD]Harga Rp 5,5 juta/ekor. Bisa nego",
-                sender = MessageSender.BREEDER_ETAWA,
+                sender = MessageSender.USER,
                 timestamp = "09:20"
             ),
             MessageItem(
                 content = "Kalau ambil 3 ekor bisa Rp 4,8 juta per ekor?",
-                sender = MessageSender.USER,
+                sender = MessageSender.BREEDER_ETAWA,
                 timestamp = "09:22"
             ),
             MessageItem(
                 content = "Boleh, saya kirimkan detailnya",
-                sender = MessageSender.BREEDER_ETAWA,
+                sender = MessageSender.USER,
                 timestamp = "09:23"
             ),
             MessageItem(
                 content = "...",
-                sender = MessageSender.USER,
+                sender = MessageSender.BREEDER_ETAWA,
                 timestamp = "09:24"
             )
         )

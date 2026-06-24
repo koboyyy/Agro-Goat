@@ -44,7 +44,9 @@ fun HomeScreen(
     val goats by viewModel.goats.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedHomeCategory by viewModel.selectedHomeCategory.collectAsState()
-    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+
+    // Gender filter state
+    var selectedGenderFilter by remember { mutableStateOf("Semua") }
 
     // Sheet states
     var selectedGoatForDetail by remember { mutableStateOf<GoatItem?>(null) }
@@ -55,12 +57,13 @@ fun HomeScreen(
         val matchesSearch = goat.name.contains(searchQuery, ignoreCase = true) || 
                             goat.location.contains(searchQuery, ignoreCase = true)
         val matchesCategory = selectedHomeCategory == null || goat.category == selectedHomeCategory
-        matchesSearch && matchesCategory
+        val matchesGender = selectedGenderFilter == "Semua" || goat.gender.equals(selectedGenderFilter, ignoreCase = true)
+        matchesSearch && matchesCategory && matchesGender
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = Color(0xFFF5F6F5) // light gray dashboard background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -72,8 +75,6 @@ fun HomeScreen(
             item {
                 AppHeader(
                     userName = userName,
-                    isDarkTheme = isDarkTheme,
-                    onThemeToggle = { viewModel.toggleTheme() },
                     onNotificationClick = {
                         viewModel.setTab(AppTab.NOTIFIKASI)
                     },
@@ -123,7 +124,7 @@ fun HomeScreen(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = (-0.3).sp
                             ),
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = Color.Black
                         )
                         Text(
                             text = "Lihat Semua →",
@@ -132,59 +133,99 @@ fun HomeScreen(
                             color = Color(0xFF2E7D32),
                             modifier = Modifier
                                 .clickable {
-                                    viewModel.setHomeCategory(null)
-                                    viewModel.setTab(AppTab.KATALOG)
+                                    selectedGenderFilter = "Semua"
                                 }
                                 .testTag("view_all_categories")
                         )
                     }
 
-                    LazyRow(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        contentPadding = PaddingValues(horizontal = 20.dp),
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(GoatCategory.entries) { cat ->
-                            CategoryCardItem(
-                                category = cat,
-                                isSelected = selectedHomeCategory == cat,
-                                onClick = { viewModel.setHomeCategory(cat) }
-                            )
-                        }
+                        CategoryCardItem(
+                            label = "Semua",
+                            iconBgColor = Color(0xFFE8F5E9),
+                            iconTint = Color(0xFF2E7D32),
+                            isSelected = selectedGenderFilter == "Semua",
+                            onClick = { selectedGenderFilter = "Semua" },
+                            modifier = Modifier.weight(1f)
+                        )
+                        CategoryCardItem(
+                            label = "Jantan",
+                            iconBgColor = Color(0xFFFFF3E0),
+                            iconTint = Color(0xFFC7A283),
+                            isSelected = selectedGenderFilter == "Jantan",
+                            onClick = { selectedGenderFilter = "Jantan" },
+                            modifier = Modifier.weight(1f)
+                        )
+                        CategoryCardItem(
+                            label = "Betina",
+                            iconBgColor = Color(0xFFFFFDE7),
+                            iconTint = Color(0xFFE65100),
+                            isSelected = selectedGenderFilter == "Betina",
+                            onClick = { selectedGenderFilter = "Betina" },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
 
-            // Kambing Terbaru (Latest Goats) Section
+            // Rekomendasi (Recommendations) Section
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = if (selectedHomeCategory == null) "Kambing Terbaru" else "Hasil Kategori ${selectedHomeCategory?.displayName}",
-                        style = MaterialTheme.typography.titleMedium.copy(
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Rekomendasi",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.3).sp
+                            ),
+                            color = Color.Black
+                        )
+                        Text(
+                            text = "Lihat Semua →",
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.3).sp
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Lihat Semua →",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32),
+                            color = Color(0xFF2E7D32),
+                            modifier = Modifier
+                                .clickable {
+                                    viewModel.setTab(AppTab.KATALOG)
+                                }
+                                .testTag("view_all_goats")
+                        )
+                    }
+                    
+                    // Active filter tag pill
+                    val tagLabel = when (selectedGenderFilter) {
+                        "Jantan" -> "Kambing Jantan"
+                        "Betina" -> "Kambing Betina"
+                        else -> "Kambing Semua"
+                    }
+                    Box(
                         modifier = Modifier
-                            .clickable {
-                                viewModel.setTab(AppTab.KATALOG)
-                            }
-                            .testTag("view_all_goats")
-                    )
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFE8F5E9))
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = tagLabel,
+                            color = Color(0xFF2E7D32),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 

@@ -56,6 +56,7 @@ fun MainAppShell(
     modifier: Modifier = Modifier
 ) {
     val currentTab by viewModel.currentTab.collectAsState()
+    val hideBottomBarFromVM by viewModel.hideBottomBar.collectAsState()
     var isLoggedIn by remember { mutableStateOf(false) }
 
     if (!isLoggedIn) {
@@ -92,7 +93,8 @@ fun MainAppShell(
         // Hide if on specific screens to focus on the content
         val hideNavBar = currentTab == AppTab.LACAK_PESANAN || 
                          currentTab == AppTab.NOTIFIKASI || 
-                         currentTab == AppTab.PEMBAYARAN
+                         currentTab == AppTab.PEMBAYARAN ||
+                         hideBottomBarFromVM
 
         if (!hideNavBar) {
             val activeColor = MaterialTheme.colorScheme.primary

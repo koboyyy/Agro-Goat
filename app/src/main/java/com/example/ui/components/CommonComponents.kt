@@ -3,6 +3,8 @@ package com.example.ui.components
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -22,13 +24,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Canvas
 import com.example.data.*
 import java.text.NumberFormat
 import java.util.Locale
@@ -42,10 +54,105 @@ fun formatRupiah(value: Long): String {
 }
 
 @Composable
+fun GoatLogo(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+        val cy = h / 2f
+
+        // Outer white circle background (handled by parent Box shape, but let's draw a nice clean ring)
+        drawCircle(
+            color = Color(0xFF1F6E35),
+            radius = w * 0.44f,
+            center = Offset(cx, cy),
+            style = Stroke(width = w * 0.03f)
+        )
+
+        val color = Color(0xFF1F6E35)
+
+        // Draw Horns (curving back)
+        val hornPath1 = Path().apply {
+            moveTo(cx + w * 0.02f, cy - h * 0.12f)
+            cubicTo(
+                cx + w * 0.15f, cy - h * 0.35f,
+                cx + w * 0.32f, cy - h * 0.28f,
+                cx + w * 0.28f, cy - h * 0.12f
+            )
+            cubicTo(
+                cx + w * 0.24f, cy - h * 0.22f,
+                cx + w * 0.12f, cy - h * 0.26f,
+                cx + w * 0.04f, cy - h * 0.10f
+            )
+        }
+        drawPath(hornPath1, color = color)
+
+        val hornPath2 = Path().apply {
+            moveTo(cx - w * 0.05f, cy - h * 0.12f)
+            cubicTo(
+                cx + w * 0.05f, cy - h * 0.33f,
+                cx + w * 0.20f, cy - h * 0.28f,
+                cx + w * 0.18f, cy - h * 0.15f
+            )
+            cubicTo(
+                cx + w * 0.14f, cy - h * 0.22f,
+                cx + w * 0.04f, cy - h * 0.26f,
+                cx - w * 0.03f, cy - h * 0.11f
+            )
+        }
+        drawPath(hornPath2, color = color.copy(alpha = 0.7f))
+
+        // Head shape
+        val headPath = Path().apply {
+            moveTo(cx - w * 0.08f, cy - h * 0.12f)
+            lineTo(cx - w * 0.25f, cy - h * 0.02f)
+            quadraticTo(cx - w * 0.30f, cy + h * 0.04f, cx - w * 0.22f, cy + h * 0.08f)
+            lineTo(cx - w * 0.12f, cy + h * 0.12f)
+            quadraticTo(cx - w * 0.08f, cy + h * 0.25f, cx - w * 0.05f, cy + h * 0.32f)
+            lineTo(cx + w * 0.15f, cy + h * 0.32f)
+            quadraticTo(cx + w * 0.12f, cy + h * 0.08f, cx + w * 0.06f, cy - h * 0.05f)
+            close()
+        }
+        drawPath(headPath, color = color)
+
+        // Ear pointing down-right
+        val earPath = Path().apply {
+            moveTo(cx + w * 0.05f, cy - h * 0.05f)
+            cubicTo(
+                cx + w * 0.22f, cy + h * 0.05f,
+                cx + w * 0.18f, cy + h * 0.16f,
+                cx + w * 0.08f, cy + h * 0.06f
+            )
+            close()
+        }
+        drawPath(earPath, color = color)
+
+        // Eye (white circle with green pupil)
+        drawCircle(
+            color = Color.White,
+            radius = w * 0.025f,
+            center = Offset(cx - w * 0.12f, cy - h * 0.01f)
+        )
+        drawCircle(
+            color = color,
+            radius = w * 0.012f,
+            center = Offset(cx - w * 0.12f, cy - h * 0.01f)
+        )
+
+        // Beard
+        val beardPath = Path().apply {
+            moveTo(cx - w * 0.18f, cy + h * 0.10f)
+            lineTo(cx - w * 0.24f, cy + h * 0.18f)
+            lineTo(cx - w * 0.14f, cy + h * 0.16f)
+            close()
+        }
+        drawPath(beardPath, color = color)
+    }
+}
+
+@Composable
 fun AppHeader(
     userName: String,
-    isDarkTheme: Boolean,
-    onThemeToggle: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -57,49 +164,56 @@ fun AppHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(
-                text = "Selamat pagi 👋",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-            )
-            Text(
-                text = "Agro Goat",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (-0.5).sp
-                ),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.testTag("app_title")
-            )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Circular GoatLogo
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .border(1.5.dp, Color(0xFF2E7D32), CircleShape)
+                    .testTag("app_logo_container"),
+                contentAlignment = Alignment.Center
+            ) {
+                GoatLogo(modifier = Modifier.fillMaxSize())
+            }
+
+            Column {
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold, color = Color.Black)) {
+                            append("Agro ")
+                        }
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold, color = Color(0xFFFF9800))) {
+                            append("Goat")
+                        }
+                    },
+                    fontSize = 18.sp,
+                    modifier = Modifier.testTag("app_title")
+                )
+                Text(
+                    text = "Bengkalis",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Theme Toggle Button
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clickable { onThemeToggle() }
-                    .testTag("theme_toggle_button"),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (isDarkTheme) "☀️" else "🌙",
-                    fontSize = 18.sp
-                )
-            }
-
             // Notification badge button
             Box(
                 modifier = Modifier
                     .size(46.dp)
+                    .shadow(elevation = 1.dp, shape = CircleShape)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(Color.White)
                     .clickable { onNotificationClick() }
                     .testTag("notification_button"),
                 contentAlignment = Alignment.Center
@@ -107,14 +221,14 @@ fun AppHeader(
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Notification",
-                    tint = MaterialTheme.colorScheme.onBackground,
+                    tint = Color.Black,
                     modifier = Modifier.size(24.dp)
                 )
                 // Red badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 8.dp)
+                        .padding(top = 6.dp, end = 6.dp)
                         .size(16.dp)
                         .background(Color.Red, CircleShape),
                     contentAlignment = Alignment.Center
@@ -174,9 +288,10 @@ fun SearchAndFilterBar(
             modifier = Modifier
                 .weight(1f)
                 .height(54.dp)
-                .clip(RoundedCornerShape(26.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 16.dp),
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color.White)
+                .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(28.dp))
+                .padding(horizontal = 18.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             Row(
@@ -186,7 +301,7 @@ fun SearchAndFilterBar(
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Cari Kambing",
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                    tint = Color.Gray,
                     modifier = Modifier.size(24.dp)
                 )
                 
@@ -194,7 +309,7 @@ fun SearchAndFilterBar(
                     if (query.isEmpty()) {
                         Text(
                             text = "Cari Kambing...",
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                            color = Color.Gray.copy(alpha = 0.7f),
                             fontSize = 15.sp
                         )
                     }
@@ -203,7 +318,7 @@ fun SearchAndFilterBar(
                         onValueChange = onQueryChange,
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onBackground,
+                            color = Color.Black,
                             fontSize = 15.sp
                         ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -239,64 +354,92 @@ fun PromoSpecialBanner(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(175.dp)
+            .height(180.dp)
             .padding(horizontal = 20.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(24.dp))
-            .background(Color(0xFF1B5E20)) // Dark Forest Green
             .clickable { onClick() }
-            .testTag("promo_banner")
+            .testTag("promo_banner"),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
-        // Overlay drawing of cute goat and circles
-        CutePromoGoat(
+        Row(
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .fillMaxHeight()
-                .width(200.dp)
-        )
-
-        // Text Overlay
-        Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(0.58f)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFFE8F5E9),
+                            Color(0xFFC8E6C9)
+                        )
+                    )
+                ),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
+            // Left Side Info
+            Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White.copy(alpha = 0.15f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .weight(0.68f)
+                    .fillMaxHeight()
+                    .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "🎉 PROMO SPESIAL",
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "TEMUKAN KAMBING\nBERKUALITAS",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF0F3E1B),
+                        lineHeight = 18.sp
+                    )
+                    Text(
+                        text = "LANGSUNG DARI PETERNAK DI PULAU BENGKALIS",
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32),
+                        letterSpacing = 0.2.sp
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    PromoBadgeItem(
+                        icon = { GoatSilhouette(modifier = Modifier.size(16.dp), tint = Color(0xFF2E7D32)) },
+                        text = "KAMBING\nBERKUALITAS"
+                    )
+                    PromoBadgeItem(
+                        icon = { ShieldCheckIcon(modifier = Modifier.size(16.dp), tint = Color(0xFF2E7D32)) },
+                        text = "SEHAT\n& TERAWAT"
+                    )
+                    PromoBadgeItem(
+                        icon = { HandDeliveryIcon(modifier = Modifier.size(16.dp), tint = Color(0xFF2E7D32)) },
+                        text = "LANGSUNG DARI\nPETERNAK"
+                    )
+                    PromoBadgeItem(
+                        icon = { CustomLocationPinIcon(modifier = Modifier.size(16.dp), tint = Color(0xFF2E7D32)) },
+                        text = "BENGKALIS\nRIAU"
+                    )
+                }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Kambing Sehat\n& Berkualitas",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Black,
-                        lineHeight = 25.sp,
-                        letterSpacing = (-0.5).sp
-                    ),
-                    color = Color.White
-                )
-                
-                Text(
-                    text = "Diskon hingga 20% untuk pembelian pertama Anda!",
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.85f),
-                    maxLines = 2,
-                    lineHeight = 15.sp
+            // Right Side Image Placeholder
+            Box(
+                modifier = Modifier
+                    .weight(0.32f)
+                    .fillMaxHeight()
+                    .background(Color.White.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CutePromoGoat(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(4.dp),
+                    bodyColor = Color.White.copy(alpha = 0.85f),
+                    accentColor = Color(0xFF2E7D32)
                 )
             }
         }
@@ -304,74 +447,93 @@ fun PromoSpecialBanner(
 }
 
 @Composable
+fun PromoBadgeItem(
+    icon: @Composable () -> Unit,
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier.width(56.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+                .border(1.dp, Color(0xFF2E7D32), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            icon()
+        }
+        Text(
+            text = text,
+            fontSize = 5.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF2E7D32),
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            lineHeight = 6.sp
+        )
+    }
+}
+
+@Composable
 fun CategoryCardItem(
-    category: GoatCategory,
+    label: String,
+    iconBgColor: Color,
+    iconTint: Color,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = when (category) {
-        GoatCategory.POTONG -> Color(0xFFE8F5E9) // soft green
-        GoatCategory.ETAWA -> Color(0xFFFFF3E0)  // soft orange
-        GoatCategory.PERAH -> Color(0xFFE3F2FD)   // soft blue
-    }
-
-    val label1 = "Kambing"
-    val label2 = when (category) {
-        GoatCategory.POTONG -> "Potong"
-        GoatCategory.ETAWA -> "Etawa"
-        GoatCategory.PERAH -> "Perah"
-    }
-
     val borderStroke = if (isSelected) {
-        Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-    } else Modifier
+        Modifier.border(1.5.dp, Color(0xFF2E7D32), RoundedCornerShape(20.dp))
+    } else {
+        Modifier.border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(20.dp))
+    }
+
+    val containerBgColor = if (isSelected) Color(0xFFE8F5E9) else Color.White
+    val textLabelColor = if (isSelected) Color(0xFF2E7D32) else Color.Black
 
     Card(
         modifier = modifier
             .width(108.dp)
             .clip(RoundedCornerShape(20.dp))
             .clickable { onClick() }
-            .testTag("category_card_${category.name.lowercase()}"),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            .then(borderStroke)
+            .testTag("category_card_${label.lowercase()}"),
+        colors = CardDefaults.cardColors(containerColor = containerBgColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Flat styling like design
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(borderStroke)
-                .padding(12.dp),
+                .padding(vertical = 16.dp, horizontal = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Circle with Goat Silhouette inside
             Box(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(bgColor),
+                    .background(iconBgColor),
                 contentAlignment = Alignment.Center
             ) {
                 GoatSilhouette(
                     modifier = Modifier.size(34.dp),
-                    tint = Color.Black.copy(alpha = 0.85f)
+                    tint = iconTint
                 )
             }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = label1,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = label2,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray
-                )
-            }
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = textLabelColor
+            )
         }
     }
 }
@@ -393,15 +555,12 @@ fun GoatVerticalRowItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 6.dp)
-            .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(20.dp),
-                clip = false
-            )
             .clip(RoundedCornerShape(20.dp))
             .clickable { onClick() }
             .testTag("goat_card_${goat.id}"),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -449,37 +608,16 @@ fun GoatVerticalRowItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = goat.name,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.3).sp
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-
-                    // Favorite Button
-                    IconButton(
-                        onClick = onFavoriteToggle,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .testTag("fav_btn_${goat.id}")
-                    ) {
-                        Icon(
-                            imageVector = if (goat.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = if (goat.isFavorite) Color.Red else Color.LightGray,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                Text(
+                    text = goat.name,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = Color.Black
+                )
 
                 // Attributes Row
                 Row(
@@ -522,7 +660,7 @@ fun GoatVerticalRowItem(
                 ) {
                     CustomLocationPinIcon(
                         modifier = Modifier.size(12.dp),
-                        tint = Color.Black
+                        tint = Color(0xFFE53935) // Red Pin
                     )
                     Text(
                         text = goat.location,
@@ -532,6 +670,81 @@ fun GoatVerticalRowItem(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Vertically Centered Favorite Button Box
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .shadow(elevation = 1.dp, shape = CircleShape)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF5F5F5))
+                    .clickable { onFavoriteToggle() }
+                    .testTag("fav_btn_${goat.id}"),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (goat.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (goat.isFavorite) Color.Red else Color.LightGray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
+    }
+}
+
+@Composable
+fun ShieldCheckIcon(modifier: Modifier = Modifier, tint: Color = Color(0xFF2E7D32)) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        
+        // Draw shield path
+        val path = Path().apply {
+            moveTo(w * 0.5f, h * 0.15f)
+            lineTo(w * 0.8f, h * 0.25f)
+            quadraticTo(w * 0.8f, h * 0.6f, w * 0.5f, h * 0.85f)
+            quadraticTo(w * 0.2f, h * 0.6f, w * 0.2f, h * 0.25f)
+            close()
+        }
+        drawPath(path, color = tint, style = Stroke(width = w * 0.08f))
+        
+        // Draw checkmark
+        val check = Path().apply {
+            moveTo(w * 0.38f, h * 0.48f)
+            lineTo(w * 0.48f, h * 0.58f)
+            lineTo(w * 0.68f, h * 0.38f)
+        }
+        drawPath(check, color = tint, style = Stroke(width = w * 0.08f))
+    }
+}
+
+@Composable
+fun HandDeliveryIcon(modifier: Modifier = Modifier, tint: Color = Color(0xFF2E7D32)) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        
+        val strokeWidth = w * 0.08f
+        val path = Path().apply {
+            moveTo(w * 0.2f, h * 0.4f)
+            lineTo(w * 0.5f, h * 0.4f)
+            lineTo(w * 0.5f, h * 0.7f)
+            lineTo(w * 0.2f, h * 0.7f)
+            close()
+            
+            moveTo(w * 0.5f, h * 0.5f)
+            lineTo(w * 0.75f, h * 0.5f)
+            lineTo(w * 0.85f, h * 0.62f)
+            lineTo(w * 0.85f, h * 0.7f)
+            lineTo(w * 0.5f, h * 0.7f)
+        }
+        drawPath(path, color = tint, style = Stroke(width = strokeWidth))
+        
+        // wheels
+        drawCircle(color = tint, radius = w * 0.08f, center = Offset(w * 0.35f, h * 0.78f))
+        drawCircle(color = tint, radius = w * 0.08f, center = Offset(w * 0.7f, h * 0.78f))
     }
 }
