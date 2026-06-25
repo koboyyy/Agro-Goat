@@ -24,11 +24,18 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.*
 import com.example.ui.components.*
+import com.example.ui.components.detail.GoatDetailView
 import com.example.viewmodel.AppTab
 import com.example.viewmodel.AgroGoatViewModel
 import kotlinx.coroutines.launch
+
+enum class HomeSubScreen {
+    HOME,
+    DETAIL
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +45,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    
+
     // States from VM
     val userName by viewModel.userName.collectAsState()
     val goats by viewModel.goats.collectAsState()
@@ -49,419 +56,304 @@ fun HomeScreen(
     var selectedGenderFilter by remember { mutableStateOf("Semua") }
 
     // Sheet states
-    var selectedGoatForDetail by remember { mutableStateOf<GoatItem?>(null) }
-    var showPromoCouponSheet by remember { mutableStateOf(false) }
+    var currentSubScreen by remember {
+        mutableStateOf(HomeSubScreen.HOME)
+    }
+
+    var selectedGoat by remember {
+        mutableStateOf<GoatItem?>(null)
+    }
+
+    var showPromoCouponSheet by remember {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(currentSubScreen) {
+        viewModel.setHideBottomBar(currentSubScreen != HomeSubScreen.HOME)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.setHideBottomBar(false)
+        }
+    }
 
     // Filtered lists
     val filteredGoats = goats.filter { goat ->
-        val matchesSearch = goat.name.contains(searchQuery, ignoreCase = true) || 
-                            goat.location.contains(searchQuery, ignoreCase = true)
+        val matchesSearch = goat.name.contains(searchQuery, ignoreCase = true) ||
+                goat.location.contains(searchQuery, ignoreCase = true)
         val matchesCategory = selectedHomeCategory == null || goat.category == selectedHomeCategory
         val matchesGender = selectedGenderFilter == "Semua" || goat.gender.equals(selectedGenderFilter, ignoreCase = true)
         matchesSearch && matchesCategory && matchesGender
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = Color(0xFFF5F6F5) // light gray dashboard background
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 90.dp) // buffer for nav bar
-        ) {
-            // Header Info Bar
-            item {
-                AppHeader(
-                    userName = userName,
-                    onNotificationClick = {
-                        viewModel.setTab(AppTab.NOTIFIKASI)
-                    },
-                    onProfileClick = {
-                        viewModel.setTab(AppTab.PROFIL)
-                    }
-                )
-            }
+    when (currentSubScreen) {
 
-            // Search and Filter Bar
-            item {
-                SearchAndFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { viewModel.setSearchQuery(it) },
-                    onFilterClick = {
-                        // Switch to catalog with sorting menu visible
-                        viewModel.setTab(AppTab.KATALOG)
-                        Toast.makeText(context, "Membuka katalog dengan filter penyortiran aktif!", Toast.LENGTH_SHORT).show()
-                    }
-                )
-            }
-
-            // Special Promo Banner
-            item {
-                PromoSpecialBanner(
-                    onClick = { showPromoCouponSheet = true }
-                )
-            }
-
-            // Kategori (Categories) Section
-            item {
-                Column(
+        HomeSubScreen.HOME -> {
+            Scaffold(
+                modifier = modifier.fillMaxSize(),
+                containerColor = Color(0xFFF5F6F5) // light gray dashboard background
+            ) { innerPadding ->
+                LazyColumn(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp, bottom = 8.dp)
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentPadding = PaddingValues(bottom = 90.dp) // buffer for nav bar
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Kategori",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-0.3).sp
-                            ),
-                            color = Color.Black
-                        )
-                        Text(
-                            text = "Lihat Semua →",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32),
-                            modifier = Modifier
-                                .clickable {
-                                    selectedGenderFilter = "Semua"
-                                }
-                                .testTag("view_all_categories")
+                    // Header Info Bar
+                    item {
+                        AppHeader(
+                            userName = userName,
+                            onNotificationClick = {
+                                viewModel.setTab(AppTab.NOTIFIKASI)
+                            },
+                            onProfileClick = {
+                                viewModel.setTab(AppTab.PROFIL)
+                            }
                         )
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CategoryCardItem(
-                            label = "Semua",
-                            iconBgColor = Color(0xFFE8F5E9),
-                            iconTint = Color(0xFF2E7D32),
-                            isSelected = selectedGenderFilter == "Semua",
-                            onClick = { selectedGenderFilter = "Semua" },
-                            modifier = Modifier.weight(1f)
-                        )
-                        CategoryCardItem(
-                            label = "Jantan",
-                            iconBgColor = Color(0xFFFFF3E0),
-                            iconTint = Color(0xFFC7A283),
-                            isSelected = selectedGenderFilter == "Jantan",
-                            onClick = { selectedGenderFilter = "Jantan" },
-                            modifier = Modifier.weight(1f)
-                        )
-                        CategoryCardItem(
-                            label = "Betina",
-                            iconBgColor = Color(0xFFFFFDE7),
-                            iconTint = Color(0xFFE65100),
-                            isSelected = selectedGenderFilter == "Betina",
-                            onClick = { selectedGenderFilter = "Betina" },
-                            modifier = Modifier.weight(1f)
+                    // Search and Filter Bar
+                    item {
+                        SearchAndFilterBar(
+                            query = searchQuery,
+                            onQueryChange = { viewModel.setSearchQuery(it) },
+                            onFilterClick = {
+                                // Switch to catalog with sorting menu visible
+                                viewModel.setTab(AppTab.KATALOG)
+                                Toast.makeText(context, "Membuka katalog dengan filter penyortiran aktif!", Toast.LENGTH_SHORT).show()
+                            }
                         )
                     }
-                }
-            }
 
-            // Rekomendasi (Recommendations) Section
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Rekomendasi",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-0.3).sp
-                            ),
-                            color = Color.Black
-                        )
-                        Text(
-                            text = "Lihat Semua →",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32),
-                            modifier = Modifier
-                                .clickable {
-                                    viewModel.setTab(AppTab.KATALOG)
-                                }
-                                .testTag("view_all_goats")
+                    // Special Promo Banner
+                    item {
+                        PromoSpecialBanner(
+                            onClick = { showPromoCouponSheet = true }
                         )
                     }
-                    
-                    // Active filter tag pill
-                    val tagLabel = when (selectedGenderFilter) {
-                        "Jantan" -> "Kambing Jantan"
-                        "Betina" -> "Kambing Betina"
-                        else -> "Kambing Semua"
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFE8F5E9))
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = tagLabel,
-                            color = Color(0xFF2E7D32),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
 
-            // List of goats matching category or search query
-            if (filteredGoats.isEmpty()) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 40.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Box(
+                    // Kategori (Categories) Section
+                    item {
+                        Column(
                             modifier = Modifier
-                                .size(80.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFFF5F5F5)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, bottom = 8.dp)
                         ) {
-                            GoatSilhouette(Modifier.size(50.dp), Color.LightGray)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Kategori",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = (-0.3).sp
+                                    ),
+                                    color = Color.Black
+                                )
+                                Text(
+                                    text = "Lihat Semua →",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32),
+                                    modifier = Modifier
+                                        .clickable {
+                                            selectedGenderFilter = "Semua"
+                                        }
+                                        .testTag("view_all_categories")
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                CategoryCardItem(
+                                    label = "Semua",
+                                    iconBgColor = Color(0xFFE8F5E9),
+                                    iconRes = R.drawable.icon_kategori_semua,
+                                    isSelected = selectedGenderFilter == "Semua",
+                                    onClick = { selectedGenderFilter = "Semua" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                CategoryCardItem(
+                                    label = "Jantan",
+                                    iconBgColor = Color(0xFFFFF3E0),
+                                    iconRes = R.drawable.icon_kambing_kategori_jantan,
+                                    isSelected = selectedGenderFilter == "Jantan",
+                                    onClick = { selectedGenderFilter = "Jantan" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                CategoryCardItem(
+                                    label = "Betina",
+                                    iconBgColor = Color(0xFFFFFDE7),
+                                    iconRes = R.drawable.icon_kambing_kategori_betina,
+                                    isSelected = selectedGenderFilter == "Betina",
+                                    onClick = { selectedGenderFilter = "Betina" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Kambing tidak ditemukan",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            text = "Cobalah kata kunci pencarian atau kategori lain.",
-                            color = Color.LightGray,
-                            fontSize = 11.sp
-                        )
                     }
-                }
-            } else {
-                items(filteredGoats) { goat ->
-                    GoatVerticalRowItem(
-                        goat = goat,
-                        onFavoriteToggle = { viewModel.toggleFavorite(goat.id) },
-                        onClick = { selectedGoatForDetail = goat }
-                    )
-                }
-            }
-        }
-    }
 
-    // 1. PRODUCT DETAIL & WEIGHT ESTIMATOR SHEET
-    if (selectedGoatForDetail != null) {
-        val item = selectedGoatForDetail!!
-        var currentTargetWeight by remember { mutableStateOf(item.weight.toFloat()) }
-
-        // Pricing calculation: base price plus extra per-kg add-on
-        val baseWeight = item.weight
-        val pricePerKg = item.price / baseWeight
-        val calculatedPrice = (item.price + (currentTargetWeight.toInt() - baseWeight) * pricePerKg).toLong()
-
-        ModalBottomSheet(
-            onDismissRequest = { selectedGoatForDetail = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 34.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Header (Name & Close button)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Box(
+                    // Rekomendasi (Recommendations) Section
+                    item {
+                        Column(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFFFECE5))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .fillMaxWidth()
+                                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = item.category.displayName,
-                                color = Color(0xFFF57C00),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Rekomendasi",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = (-0.3).sp
+                                    ),
+                                    color = Color.Black
+                                )
+                                Text(
+                                    text = "Lihat Semua →",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32),
+                                    modifier = Modifier
+                                        .clickable {
+                                            viewModel.setTab(AppTab.KATALOG)
+                                        }
+                                        .testTag("view_all_goats")
+                                )
+                            }
+
+                            // Active filter tag pill
+                            val tagLabel = when (selectedGenderFilter) {
+                                "Jantan" -> "Kambing Jantan"
+                                "Betina" -> "Kambing Betina"
+                                else -> "Kambing Semua"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFE8F5E9))
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = tagLabel,
+                                    color = Color(0xFF2E7D32),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // List of goats matching category or search query
+                    if (filteredGoats.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 40.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color(0xFFF5F5F5)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    GoatSilhouette(Modifier.size(50.dp), Color.LightGray)
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Kambing tidak ditemukan",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = "Cobalah kata kunci pencarian atau kategori lain.",
+                                    color = Color.LightGray,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    } else {
+                        items(filteredGoats) { goat ->
+                            GoatVerticalRowItem(
+                                goat = goat,
+                                onFavoriteToggle = { viewModel.toggleFavorite(goat.id) },
+                                onClick = {
+                                    selectedGoat = goat
+                                    currentSubScreen = HomeSubScreen.DETAIL
+                                }
                             )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = item.name,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                    }
-                    
-                    IconButton(
-                        onClick = { selectedGoatForDetail = null },
-                        modifier = Modifier
-                            .background(Color(0xFFF5F5F5), CircleShape)
-                            .size(36.dp)
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(20.dp))
-                    }
-                }
-
-                // Silhouette Illustration Box Card
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            when (item.category) {
-                                GoatCategory.POTONG -> Color(0xFFE8F5E9)
-                                GoatCategory.ETAWA -> Color(0xFFFFF3E0)
-                                GoatCategory.PERAH -> Color(0xFFE3F2FD)
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    GoatSilhouette(modifier = Modifier.size(110.dp), Color.Black.copy(alpha = 0.82f))
-                }
-
-                // Technical Parameters Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    listOf(
-                        "Kelamin" to item.gender,
-                        "Bobot Awal" to "${item.weight} kg",
-                        "Usia" to "${item.age} Tahun"
-                    ).forEach { (label, value) ->
-                        Card(
-                            modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F3))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(label, fontSize = 11.sp, color = Color.Gray)
-                                Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                // Description
-                Text(
-                    text = item.description,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    color = Color.Gray
-                )
-
-                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
-
-                // INTERACTIVE WEIGHT SLIDER SECTION
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Estimasi Bobot Akhir",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${currentTargetWeight.toInt()} kg",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF2E7D32)
-                        )
-                    }
-                    
-                    Slider(
-                        value = currentTargetWeight,
-                        onValueChange = { currentTargetWeight = it },
-                        valueRange = item.weight.toFloat()..(item.weight.toFloat() + 40f),
-                        colors = SliderDefaults.colors(
-                            activeTrackColor = Color(0xFF2E7D32),
-                            thumbColor = Color(0xFF2E7D32)
-                        )
-                    )
-                    
-                    Text(
-                        text = "*Harga bertambah proporsional sesuai pertambahan berat pakan/usia timbang.",
-                        fontSize = 10.sp,
-                        color = Color.LightGray
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Bottom CTA details
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text("Total Pembayaran", fontSize = 11.sp, color = Color.Gray)
-                        Text(
-                            text = formatRupiah(calculatedPrice),
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color(0xFF2E7D32)
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            viewModel.createOrder(item, currentTargetWeight.toInt())
-                            selectedGoatForDetail = null
-                            viewModel.setTab(AppTab.PESANAN)
-                            Toast.makeText(context, "Pesanan Berhasil Dibuat!", Toast.LENGTH_SHORT).show()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier
-                            .height(52.dp)
-                            .testTag("checkout_order_button")
-                    ) {
-                        Icon(Icons.Default.ShoppingCart, contentDescription = "Beli")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pesan Sekarang", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
+
+        HomeSubScreen.DETAIL -> {
+
+            selectedGoat?.let {
+
+                GoatDetailView(
+
+                    goat = it,
+
+                    onBack = {
+
+                        currentSubScreen =
+                            HomeSubScreen.HOME
+
+                    },
+
+                    onToggleFav = {
+
+                        viewModel.toggleFavorite(
+                            it.id
+                        )
+
+                    },
+
+                    onChat = {
+
+                        viewModel.setTab(
+                            AppTab.CHAT
+                        )
+
+                    },
+
+                    onOrder = {
+
+                        viewModel.setTab(
+                            AppTab.KATALOG
+                        )
+
+                    }
+
+                )
+
+            }
+
+        }
     }
+
+
 
     // 2. PROMO BANNER SPECIAL SHEEET
     if (showPromoCouponSheet) {
@@ -568,3 +460,4 @@ fun HomeScreen(
         }
     }
 }
+

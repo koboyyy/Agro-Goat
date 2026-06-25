@@ -446,7 +446,6 @@ fun LoginScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
                                     .testTag("login_email_input")
                                     .border(
                                         width = 1.dp,
@@ -518,7 +517,6 @@ fun LoginScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
                                     .testTag("login_password_input")
                                     .border(
                                         width = 1.dp,
@@ -569,6 +567,7 @@ fun LoginScreen(
                         // Submit Button
                         val buttonBgColor = if (showLoginErrorBanner) Color(0xFFEF5350) else Color(0xFF1F6E35)
                         Button(
+                            enabled = !isLoading,
                             onClick = {
                                 if (emailInput == "user@salah.com") {
                                     showLoginErrorBanner = true
@@ -597,7 +596,10 @@ fun LoginScreen(
                                 .fillMaxWidth()
                                 .height(50.dp)
                                 .testTag("submit_login_button"),
-                            colors = ButtonDefaults.buttonColors(containerColor = buttonBgColor),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = buttonBgColor,
+                                disabledContainerColor = buttonBgColor.copy(alpha = 0.6f)
+                            ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
@@ -687,7 +689,6 @@ fun LoginScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
                                     .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color(0xFFF5F6F5),
@@ -725,7 +726,6 @@ fun LoginScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
                                     .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color(0xFFF5F6F5),
@@ -764,7 +764,6 @@ fun LoginScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
                                     .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color(0xFFF5F6F5),
@@ -812,7 +811,6 @@ fun LoginScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
                                     .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color(0xFFF5F6F5),
@@ -860,7 +858,6 @@ fun LoginScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
                                     .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color(0xFFF5F6F5),
@@ -921,6 +918,7 @@ fun LoginScreen(
 
                         // Daftar Button
                         Button(
+                            enabled = !isLoading,
                             onClick = {
                                 if (nameInput.isBlank() || emailInput.isBlank() || phoneInput.isBlank() || passwordInput.isBlank()) {
                                     Toast.makeText(context, "Harap lengkapi semua kolom!", Toast.LENGTH_SHORT).show()
@@ -943,7 +941,10 @@ fun LoginScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6E35)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF1F6E35),
+                                disabledContainerColor = Color(0xFF1F6E35).copy(alpha = 0.6f)
+                            ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
@@ -985,39 +986,29 @@ fun LoginScreen(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .background(Color.Black.copy(alpha = 0.45f))
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .clickable(enabled = false) {},
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 20.dp, vertical = 18.dp)
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                            modifier = Modifier.padding(horizontal = 24.dp)
                         ) {
-                            Spacer(modifier = Modifier.weight(1f))
-
-                            // Active spinner container aligned exactly to the button position
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF1F6E35).copy(alpha = 0.85f)),
-                                contentAlignment = Alignment.Center
+                            Column(
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                SegmentedSpinner(modifier = Modifier.size(24.dp))
-                            }
-
-                            if (currentScreen == AuthScreen.LOGIN) {
-                                Spacer(modifier = Modifier.height(14.dp))
+                                SegmentedSpinner(modifier = Modifier.size(32.dp), color = Color(0xFF1F6E35))
                                 Text(
-                                    text = "Memverifikasi akun...",
-                                    color = Color.White,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium
+                                    text = if (currentScreen == AuthScreen.LOGIN) "Memverifikasi akun..." else "Memproses...",
+                                    color = Color.Black,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
                                 )
-                                Spacer(modifier = Modifier.height(20.dp))
-                            } else {
-                                Spacer(modifier = Modifier.height(20.dp))
                             }
                         }
                     }

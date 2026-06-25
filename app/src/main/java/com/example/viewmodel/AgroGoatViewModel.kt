@@ -60,7 +60,7 @@ class AgroGoatViewModel : ViewModel() {
     val selectedOrderForPayment: StateFlow<OrderItem?> = _selectedOrderForPayment.asStateFlow()
 
     // User details
-    private val _userName = MutableStateFlow("Eko Prasetyo")
+    private val _userName = MutableStateFlow("Siti Zahfia")
     val userName: StateFlow<String> = _userName.asStateFlow()
 
     private val _userBalance = MutableStateFlow(12500000L) // in IDR
@@ -444,29 +444,7 @@ class AgroGoatViewModel : ViewModel() {
     }
 
     private fun setupDefaultOrders() {
-        val goatEtawaJantan = GoatItem(
-            name = "Kambing Etawa",
-            category = GoatCategory.ETAWA,
-            gender = "Jantan",
-            weight = 55,
-            age = 1.5,
-            price = 5500000,
-            location = "Bengkalis",
-            description = ""
-        )
-
-        val goatPEJantan = GoatItem(
-            name = "Kambing PE",
-            category = GoatCategory.ETAWA,
-            gender = "Jantan",
-            weight = 40,
-            age = 2.0,
-            price = 1550000,
-            location = "Bengkalis",
-            description = ""
-        )
-
-        val goatEtawaBetina = GoatItem(
+        val goatEtawa1 = GoatItem(
             name = "Kambing Etawa",
             category = GoatCategory.ETAWA,
             gender = "Betina",
@@ -477,49 +455,60 @@ class AgroGoatViewModel : ViewModel() {
             description = ""
         )
 
-        val goatBoerJantan = GoatItem(
-            name = "Kambing Boer",
-            category = GoatCategory.POTONG,
-            gender = "Jantan",
-            weight = 60,
-            age = 2.0,
-            price = 4000000,
+        val goatPE = GoatItem(
+            name = "Kambing PE",
+            category = GoatCategory.ETAWA,
+            gender = "Betina",
+            weight = 45,
+            age = 1.5,
+            price = 4800000,
+            location = "Bengkalis",
+            description = ""
+        )
+
+        val goatEtawa2 = GoatItem(
+            name = "Kambing Etawa",
+            category = GoatCategory.ETAWA,
+            gender = "Betina",
+            weight = 45,
+            age = 1.0,
+            price = 4800000,
             location = "Bengkalis",
             description = ""
         )
 
         _orders.value = listOf(
             OrderItem(
-                id = "AG-2024-0871",
-                goat = goatEtawaJantan,
-                selectedWeight = 55,
-                totalPrice = 5500000,
-                status = OrderStatus.PACKING,
-                orderDate = "20 Jun 2024, 08:30"
-            ),
-            OrderItem(
-                id = "AG-2024-0870",
-                goat = goatPEJantan,
-                selectedWeight = 40,
-                totalPrice = 3100000,
+                id = "AG-200626-001",
+                goat = goatEtawa1,
+                selectedWeight = 45,
+                totalPrice = 4800000,
                 status = OrderStatus.SHIPPING,
-                orderDate = "18 Jun 2024, 14:20"
+                orderDate = "20 Jun 2026"
             ),
             OrderItem(
-                id = "AG-2024-0869",
-                goat = goatEtawaBetina,
+                id = "AG-180626-002",
+                goat = goatPE,
+                selectedWeight = 45,
+                totalPrice = 4800000,
+                status = OrderStatus.SHIPPING,
+                orderDate = "18 Jun 2026"
+            ),
+            OrderItem(
+                id = "AG-150626-003",
+                goat = goatEtawa2,
                 selectedWeight = 45,
                 totalPrice = 4800000,
                 status = OrderStatus.COMPLETED,
-                orderDate = "15 Jun 2024, 10:15"
+                orderDate = "15 Jun 2024"
             ),
             OrderItem(
-                id = "AG-2024-0868",
-                goat = goatBoerJantan,
-                selectedWeight = 60,
-                totalPrice = 4000000,
+                id = "AG-100626-004",
+                goat = goatEtawa2,
+                selectedWeight = 45,
+                totalPrice = 4800000,
                 status = OrderStatus.COMPLETED,
-                orderDate = "10 Jun 2024, 16:45"
+                orderDate = "10 Jun 2026"
             )
         )
     }

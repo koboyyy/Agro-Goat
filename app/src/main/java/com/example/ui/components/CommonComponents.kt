@@ -41,6 +41,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import com.example.data.*
 import java.text.NumberFormat
 import java.util.Locale
@@ -55,99 +59,12 @@ fun formatRupiah(value: Long): String {
 
 @Composable
 fun GoatLogo(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val cx = w / 2f
-        val cy = h / 2f
-
-        // Outer white circle background (handled by parent Box shape, but let's draw a nice clean ring)
-        drawCircle(
-            color = Color(0xFF1F6E35),
-            radius = w * 0.44f,
-            center = Offset(cx, cy),
-            style = Stroke(width = w * 0.03f)
-        )
-
-        val color = Color(0xFF1F6E35)
-
-        // Draw Horns (curving back)
-        val hornPath1 = Path().apply {
-            moveTo(cx + w * 0.02f, cy - h * 0.12f)
-            cubicTo(
-                cx + w * 0.15f, cy - h * 0.35f,
-                cx + w * 0.32f, cy - h * 0.28f,
-                cx + w * 0.28f, cy - h * 0.12f
-            )
-            cubicTo(
-                cx + w * 0.24f, cy - h * 0.22f,
-                cx + w * 0.12f, cy - h * 0.26f,
-                cx + w * 0.04f, cy - h * 0.10f
-            )
-        }
-        drawPath(hornPath1, color = color)
-
-        val hornPath2 = Path().apply {
-            moveTo(cx - w * 0.05f, cy - h * 0.12f)
-            cubicTo(
-                cx + w * 0.05f, cy - h * 0.33f,
-                cx + w * 0.20f, cy - h * 0.28f,
-                cx + w * 0.18f, cy - h * 0.15f
-            )
-            cubicTo(
-                cx + w * 0.14f, cy - h * 0.22f,
-                cx + w * 0.04f, cy - h * 0.26f,
-                cx - w * 0.03f, cy - h * 0.11f
-            )
-        }
-        drawPath(hornPath2, color = color.copy(alpha = 0.7f))
-
-        // Head shape
-        val headPath = Path().apply {
-            moveTo(cx - w * 0.08f, cy - h * 0.12f)
-            lineTo(cx - w * 0.25f, cy - h * 0.02f)
-            quadraticTo(cx - w * 0.30f, cy + h * 0.04f, cx - w * 0.22f, cy + h * 0.08f)
-            lineTo(cx - w * 0.12f, cy + h * 0.12f)
-            quadraticTo(cx - w * 0.08f, cy + h * 0.25f, cx - w * 0.05f, cy + h * 0.32f)
-            lineTo(cx + w * 0.15f, cy + h * 0.32f)
-            quadraticTo(cx + w * 0.12f, cy + h * 0.08f, cx + w * 0.06f, cy - h * 0.05f)
-            close()
-        }
-        drawPath(headPath, color = color)
-
-        // Ear pointing down-right
-        val earPath = Path().apply {
-            moveTo(cx + w * 0.05f, cy - h * 0.05f)
-            cubicTo(
-                cx + w * 0.22f, cy + h * 0.05f,
-                cx + w * 0.18f, cy + h * 0.16f,
-                cx + w * 0.08f, cy + h * 0.06f
-            )
-            close()
-        }
-        drawPath(earPath, color = color)
-
-        // Eye (white circle with green pupil)
-        drawCircle(
-            color = Color.White,
-            radius = w * 0.025f,
-            center = Offset(cx - w * 0.12f, cy - h * 0.01f)
-        )
-        drawCircle(
-            color = color,
-            radius = w * 0.012f,
-            center = Offset(cx - w * 0.12f, cy - h * 0.01f)
-        )
-
-        // Beard
-        val beardPath = Path().apply {
-            moveTo(cx - w * 0.18f, cy + h * 0.10f)
-            lineTo(cx - w * 0.24f, cy + h * 0.18f)
-            lineTo(cx - w * 0.14f, cy + h * 0.16f)
-            close()
-        }
-        drawPath(beardPath, color = color)
-    }
+    Image(
+        painter = painterResource(id = R.drawable.logo),
+        contentDescription = "Goat Logo",
+        modifier = modifier.fillMaxSize(),
+        contentScale = ContentScale.Crop
+    )
 }
 
 @Composable
@@ -360,87 +277,36 @@ fun PromoSpecialBanner(
             .height(180.dp)
             .padding(horizontal = 20.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(24.dp))
-            .clickable { onClick() }
-            .testTag("promo_banner"),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xFFE8F5E9),
-                            Color(0xFFC8E6C9)
-                        )
-                    )
-                ),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Left Side Info
-            Column(
-                modifier = Modifier
-                    .weight(0.68f)
-                    .fillMaxHeight()
-                    .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "TEMUKAN KAMBING\nBERKUALITAS",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFF0F3E1B),
-                        lineHeight = 18.sp
-                    )
-                    Text(
-                        text = "LANGSUNG DARI PETERNAK DI PULAU BENGKALIS",
-                        fontSize = 7.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32),
-                        letterSpacing = 0.2.sp
-                    )
-                }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    PromoBadgeItem(
-                        icon = { GoatSilhouette(modifier = Modifier.size(16.dp), tint = Color(0xFF2E7D32)) },
-                        text = "KAMBING\nBERKUALITAS"
-                    )
-                    PromoBadgeItem(
-                        icon = { ShieldCheckIcon(modifier = Modifier.size(16.dp), tint = Color(0xFF2E7D32)) },
-                        text = "SEHAT\n& TERAWAT"
-                    )
-                    PromoBadgeItem(
-                        icon = { HandDeliveryIcon(modifier = Modifier.size(16.dp), tint = Color(0xFF2E7D32)) },
-                        text = "LANGSUNG DARI\nPETERNAK"
-                    )
-                    PromoBadgeItem(
-                        icon = { CustomLocationPinIcon(modifier = Modifier.size(16.dp), tint = Color(0xFF2E7D32)) },
-                        text = "BENGKALIS\nRIAU"
-                    )
-                }
-            }
+            // Background Image
+            Image(
+                painter = painterResource(id = R.drawable.banner_agro_goat),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
 
-            // Right Side Image Placeholder
-            Box(
-                modifier = Modifier
-                    .weight(0.32f)
-                    .fillMaxHeight()
-                    .background(Color.White.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+            // Isi Banner
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                CutePromoGoat(
+                // Column kiri
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(4.dp),
-                    bodyColor = Color.White.copy(alpha = 0.85f),
-                    accentColor = Color(0xFF2E7D32)
-                )
+                        .weight(0.68f)
+                        .fillMaxHeight()
+                        .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Isi text dan badge
+                }
             }
         }
     }
@@ -482,8 +348,8 @@ fun PromoBadgeItem(
 @Composable
 fun CategoryCardItem(
     label: String,
+    iconRes: Int,
     iconBgColor: Color,
-    iconTint: Color,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -522,9 +388,11 @@ fun CategoryCardItem(
                     .background(iconBgColor),
                 contentAlignment = Alignment.Center
             ) {
-                GoatSilhouette(
+                Image(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = label,
                     modifier = Modifier.size(34.dp),
-                    tint = iconTint
+                    contentScale = ContentScale.Fit
                 )
             }
 
@@ -545,6 +413,13 @@ fun GoatVerticalRowItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+    val picRes = when (goat.category) {
+        GoatCategory.POTONG -> R.drawable.burawa
+        GoatCategory.ETAWA -> R.drawable.etawa
+        GoatCategory.PERAH -> R.drawable.kacang
+    }
+
     val picBgColor = when (goat.category) {
         GoatCategory.POTONG -> Color(0xFFE8F5E9)
         GoatCategory.ETAWA -> Color(0xFFFFF3E0)
@@ -576,9 +451,11 @@ fun GoatVerticalRowItem(
                     .background(picBgColor),
                 contentAlignment = Alignment.Center
             ) {
-                GoatSilhouette(
-                    modifier = Modifier.size(62.dp),
-                    tint = Color.Black.copy(alpha = 0.8f)
+                Image(
+                    painter = painterResource(id = picRes),
+                    contentDescription = goat.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
 
                 if (goat.isNew) {
@@ -587,15 +464,14 @@ fun GoatVerticalRowItem(
                             .align(Alignment.TopStart)
                             .padding(6.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF2E7D32)) // BARU badge green
+                            .background(Color(0xFF2E7D32))
                             .padding(horizontal = 6.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = "BARU",
                             color = Color.White,
                             fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

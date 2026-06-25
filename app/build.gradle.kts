@@ -94,7 +94,8 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
-  testImplementation(libs.androidx.compose.ui.test.junit4)
+    implementation(libs.androidx.compose.foundation)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
   testImplementation(libs.junit)
@@ -112,4 +113,10 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+
+  // Material Symbols
+  implementation("androidx.compose.material:material-icons-extended:<versi-compose>")
+
+  //Compose BOM
+  implementation("androidx.compose.material:material-icons-extended:<versi-compose>")
 }

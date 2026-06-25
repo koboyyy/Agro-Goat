@@ -1,35 +1,32 @@
 package com.example.ui.screens
 
 import android.widget.Toast
-import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.*
 import com.example.viewmodel.AgroGoatViewModel
+import com.example.viewmodel.AppTab
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,11 +39,6 @@ fun ProfileScreen(
     // VM states
     val userName by viewModel.userName.collectAsState()
     val userAddress by viewModel.userAddress.collectAsState()
-    val orders by viewModel.orders.collectAsState()
-    val goats by viewModel.goats.collectAsState()
-
-    // Local Toggle for notifications
-    var notifEnabled by remember { mutableStateOf(true) }
 
     // Edit profile dialog states
     var showEditDialog by remember { mutableStateOf(false) }
@@ -55,361 +47,165 @@ fun ProfileScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Profil Saya",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            Toast.makeText(context, "Membuka Pengaturan Akun...", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        Text(
-                            text = "⚙️",
-                            fontSize = 20.sp
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = Color(0xFFF7F8F7) // Clean off-white background
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 10.dp)
-                .padding(bottom = 100.dp), // Clear bottom nav bar space
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 24.dp)
+                .padding(top = 40.dp, bottom = 100.dp), // Clear space for bottom bar
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            
-            // 1. Profile card container matching "Peternak Maju" layout exactly
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(elevation = 1.dp, shape = RoundedCornerShape(24.dp)),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp, horizontal = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Profile Avatar Stack (Green circle with face icon + checked badge)
-                    Box(
-                        modifier = Modifier.size(96.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(90.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF2E7D32)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color.Black.copy(alpha = 0.5f),
-                                modifier = Modifier.size(54.dp)
-                            )
-                        }
-                        
-                        // Tiny verified tick seal at bottom right corner
-                        Box(
-                            modifier = Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF4CAF50))
-                                .align(Alignment.BottomEnd)
-                                .clickable {
-                                    Toast.makeText(context, "Akun Terverifikasi Agro Goat", Toast.LENGTH_SHORT).show()
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                    // User Identity details
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = userName,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.testTag("profile_username_label")
-                        )
-                        Text(
-                            text = "peternak.maju@agrogoat.id",
-                            fontSize = 13.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    // Gold Status badge
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(Color(0xFFE8F5E9))
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = "Member Gold",
-                            color = Color(0xFF1B5E20),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            // 2. Statistics Section (3 side-by-side cards)
+            // 1. User Header Section
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Custom drawn Avatar silhouette matching the mockup
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF212224)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val r = size.width / 2f
+                        // Head circle
+                        drawCircle(
+                            color = Color.White,
+                            radius = r * 0.28f,
+                            center = Offset(r, r * 0.8f)
+                        )
+                        // Shoulders
+                        drawCircle(
+                            color = Color.White,
+                            radius = r * 0.48f,
+                            center = Offset(r, r * 1.7f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = userName,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        modifier = Modifier.testTag("profile_username_label")
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "+62 822-6883-0122",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 2. Menu items Section
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Stat 1: Ternak counts based on goats
-                val totalTernak = goats.size
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .shadow(1.dp, RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = "$totalTernak",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32)
+                // Item 1: Informasi Akun
+                ProfileMenuCard(
+                    title = "Informasi Akun",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Person,
+                            contentDescription = null,
+                            tint = Color(0xFF212224),
+                            modifier = Modifier.size(24.dp)
                         )
-                        Text(
-                            text = "Ternak",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Medium
-                        )
+                    },
+                    onClick = {
+                        inputName = userName
+                        inputAddress = userAddress
+                        showEditDialog = true
                     }
-                }
+                )
 
-                // Stat 2: Transaksi counts based on actual orders
-                val transCount = orders.size
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .shadow(1.dp, RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = "$transCount",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32)
+                // Item 2: Pesanan Saya
+                ProfileMenuCard(
+                    title = "Pesanan Saya",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.ReceiptLong,
+                            contentDescription = null,
+                            tint = Color(0xFF212224),
+                            modifier = Modifier.size(24.dp)
                         )
-                        Text(
-                            text = "Transaksi",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Medium
-                        )
+                    },
+                    onClick = {
+                        viewModel.setTab(AppTab.PESANAN)
                     }
-                }
+                )
 
-                // Stat 3: Favorit counts based on starred goats
-                val favCount = goats.count { it.isFavorite }
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .shadow(1.dp, RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = if (favCount > 0) "$favCount" else "5", // Fallback to 5 for matching illustration look
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32)
+                // Item 3: Notifikasi
+                ProfileMenuCard(
+                    title = "Notifikasi",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Notifications,
+                            contentDescription = null,
+                            tint = Color(0xFF212224),
+                            modifier = Modifier.size(24.dp)
                         )
-                        Text(
-                            text = "Favorit",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Medium
-                        )
+                    },
+                    onClick = {
+                        viewModel.setTab(AppTab.NOTIFIKASI)
                     }
-                }
+                )
+
+                // Item 4: Pengaturan (No icon, aligned text)
+                ProfileMenuCard(
+                    title = "Pengaturan",
+                    icon = {
+                        Spacer(modifier = Modifier.width(24.dp))
+                    },
+                    onClick = {
+                        Toast.makeText(context, "Fitur Pengaturan akan segera hadir!", Toast.LENGTH_SHORT).show()
+                    }
+                )
             }
 
-            // 3. First Profile Menu Option Card Group (Akun, Alamat, Metode Pembayaran)
-            Card(
+            Spacer(modifier = Modifier.weight(1f))
+
+            // 3. Logout Button (Keluar)
+            OutlinedButton(
+                onClick = {
+                    Toast.makeText(context, "Berhasil keluar dari akun.", Toast.LENGTH_SHORT).show()
+                },
+                border = BorderStroke(1.dp, Color(0xFFEF5350)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF5350)),
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(1.dp, RoundedCornerShape(20.dp)),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(20.dp)
+                    .height(50.dp)
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // Item 1: Akun Saya
-                    ProfileMenuItem(
-                        emojiIcon = "👤",
-                        emojiBgColor = Color(0xFFE8F5E9),
-                        title = "Akun Saya",
-                        onClick = {
-                            inputName = userName
-                            inputAddress = userAddress
-                            showEditDialog = true
-                        }
-                    )
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
-
-                    // Item 2: Alamat Pengiriman
-                    ProfileMenuItem(
-                        emojiIcon = "📍",
-                        emojiBgColor = Color(0xFFE3F2FD),
-                        title = "Alamat Pengiriman",
-                        subtitle = userAddress,
-                        onClick = {
-                            inputName = userName
-                            inputAddress = userAddress
-                            showEditDialog = true
-                        }
-                    )
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
-
-                    // Item 3: Metode Pembayaran
-                    ProfileMenuItem(
-                        emojiIcon = "💳",
-                        emojiBgColor = Color(0xFFFFF3E0),
-                        title = "Metode Pembayaran",
-                        onClick = {
-                            Toast.makeText(context, "Metode Pembayaran Utama: AgroPay Pas", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
+                Text(
+                    text = "Keluar",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
-
-            // 4. Second Profile Menu Option Card Group (Notifikasi, Keamanan, Pusat Bantuan)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(1.dp, RoundedCornerShape(20.dp)),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // Item 1: Notifikasi with toggle
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFFECEE)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("🔔", fontSize = 16.sp)
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Text(
-                            text = "Notifikasi",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Switch(
-                            checked = notifEnabled,
-                            onCheckedChange = {
-                                notifEnabled = it
-                                Toast.makeText(context, if (it) "Notifikasi Diaktifkan" else "Notifikasi Dimatikan", Toast.LENGTH_SHORT).show()
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF4CAF50),
-                                uncheckedThumbColor = Color.Gray,
-                                uncheckedTrackColor = Color.LightGray.copy(alpha = 0.5f)
-                            )
-                        )
-                    }
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
-
-                    // Item 2: Keamanan & Privasi
-                    ProfileMenuItem(
-                        emojiIcon = "🛡️",
-                        emojiBgColor = Color(0xFFEDE7F6),
-                        title = "Keamanan & Privasi",
-                        onClick = {
-                            Toast.makeText(context, "Sertifikat Enkripsi Akun Agro Goat Aman!", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
-
-                    // Item 3: Pusat Bantuan
-                    ProfileMenuItem(
-                        emojiIcon = "❔",
-                        emojiBgColor = Color(0xFFE0F7FA),
-                        title = "Pusat Bantuan",
-                        onClick = {
-                            Toast.makeText(context, "Hubungi Admin Lapangan: info@agrogoat.co.id", Toast.LENGTH_LONG).show()
-                        }
-                    )
-                }
-            }
+            
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 
-    // EDIT PROFILE POPUP DIALOG
+    // EDIT PROFILE DIALOG
     if (showEditDialog) {
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
@@ -449,7 +245,7 @@ fun ProfileScreen(
                         showEditDialog = false
                         Toast.makeText(context, "Profil Berhasil Diperbarui!", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6E35)),
                     modifier = Modifier.testTag("save_profile_button")
                 ) {
                     Text("Simpan", fontWeight = FontWeight.Bold)
@@ -465,58 +261,35 @@ fun ProfileScreen(
 }
 
 @Composable
-fun ProfileMenuItem(
-    emojiIcon: String,
-    emojiBgColor: Color,
+fun ProfileMenuCard(
     title: String,
-    subtitle: String = "",
+    icon: @Composable () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .shadow(elevation = 0.5.dp, shape = RoundedCornerShape(8.dp)),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(8.dp)
     ) {
-        // Icon container
-        Box(
+        Row(
             modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(emojiBgColor),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(emojiIcon, fontSize = 16.sp)
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        // Text title / subtitle
-        Column(modifier = Modifier.weight(1f)) {
+            icon()
+            Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = title,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = Color.Black
             )
-            if (subtitle.isNotEmpty()) {
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    color = Color.Gray,
-                    maxLines = 1
-                )
-            }
         }
-
-        // Action indicator carrot
-        Icon(
-            imageVector = Icons.Default.KeyboardArrowRight,
-            contentDescription = null,
-            tint = Color.LightGray,
-            modifier = Modifier.size(18.dp)
-        )
     }
 }

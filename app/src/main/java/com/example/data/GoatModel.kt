@@ -1,6 +1,7 @@
 package com.example.data
 
 import java.util.UUID
+import androidx.annotation.DrawableRes
 
 enum class GoatCategory(val displayName: String, val description: String) {
     POTONG("Kambing Potong", "Potong"),
@@ -19,7 +20,8 @@ data class GoatItem(
     val location: String = "Bengkalis",
     val description: String,
     val isNew: Boolean = false,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    @DrawableRes val imageRes: Int? = null
 )
 
 enum class OrderStatus(val displayName: String, val stepIndex: Int) {

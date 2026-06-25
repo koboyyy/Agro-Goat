@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.example.R
 import com.example.data.*
 import com.example.ui.components.*
 import com.example.viewmodel.AgroGoatViewModel
@@ -57,6 +58,11 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.ui.components.detail.GoatDetailView
+import com.example.viewmodel.AppTab
 
 enum class CatalogSubScreen {
     LIST,
@@ -588,21 +594,42 @@ fun CatalogScreen(
                 }
 
                 CatalogSubScreen.DETAIL -> {
-                    selectedGoat?.let { goat ->
-                        GoatDetailView(
-                            goat = goat,
-                            onBack = { currentSubScreen = CatalogSubScreen.LIST },
-                            onToggleFav = { viewModel.toggleFavorite(goat.id) },
-                            onChat = {
-                                viewModel.setTab(com.example.viewmodel.AppTab.CHAT)
-                            },
-                            onOrder = {
-                                currentSubScreen = CatalogSubScreen.BOOKING_STEP1
-                            }
-                        )
-                    }
-                }
 
+                    selectedGoat?.let { goat ->
+
+                        GoatDetailView(
+
+                            goat = goat,
+
+                            onBack = {
+                                currentSubScreen =
+                                    CatalogSubScreen.LIST
+                            },
+
+                            onToggleFav = {
+                                viewModel.toggleFavorite(goat.id)
+                            },
+
+                            onChat = {
+
+                                viewModel.setTab(
+                                    AppTab.CHAT
+                                )
+
+                            },
+
+                            onOrder = {
+
+                                currentSubScreen =
+                                    CatalogSubScreen.BOOKING_STEP1
+
+                            }
+
+                        )
+
+                    }
+
+                }
                 CatalogSubScreen.BOOKING_STEP1 -> {
                     selectedGoat?.let { goat ->
                         BookingStep1View(
@@ -710,354 +737,6 @@ fun CatalogScreen(
     }
 }
 
-// -------------------------------------------------------------
-// SUB-SCREEN 1: DETAILED VIEW COMPOSABLE
-// -------------------------------------------------------------
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun GoatDetailView(
-    goat: GoatItem,
-    onBack: () -> Unit,
-    onToggleFav: () -> Unit,
-    onChat: () -> Unit,
-    onOrder: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val scrollState = rememberScrollState()
-
-    val picBgColor = when (goat.category) {
-        GoatCategory.POTONG -> Color(0xFFE8F5E9)
-        GoatCategory.ETAWA -> Color(0xFFFFF3E0)
-        GoatCategory.PERAH -> Color(0xFFE3F2FD)
-    }
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        // Sticky Header / Image Area
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(0.42f)
-                .background(picBgColor),
-            contentAlignment = Alignment.Center
-        ) {
-            GoatSilhouette(
-                modifier = Modifier.size(160.dp),
-                tint = Color.Black.copy(alpha = 0.8f)
-            )
-
-            // Overlays: Back & Favorite Buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Back button overlay
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .clickable { onBack() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.Black,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                // Favorite button overlay
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .clickable { onToggleFav() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (goat.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (goat.isFavorite) Color.Red else Color.LightGray,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-        // Details Sheet (Overlay container)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(0.58f)
-                .offset(y = (-20).dp)
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color.White)
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 24.dp, vertical = 20.dp)
-                    .padding(bottom = 70.dp) // buffer for sticky bottom CTA
-            ) {
-                // Title and Availability Badge
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = goat.name,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
-
-                    // Availability Badge
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF81C784).copy(alpha = 0.8f))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = "Tersedia",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Price
-                Text(
-                    text = formatRupiah(goat.price),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF2E7D32)
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // 2-Column Detail List Grid
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    // Left Column
-                    Column(
-                        modifier = Modifier.weight(1.05f),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        DetailDotItem(label = "Jenis", value = "(${goat.category.name.lowercase().replaceFirstChar { it.uppercase() }}Pejantan)" )
-                        DetailDotItem(label = "Berat", value = "${goat.weight} kg")
-                        DetailDotItem(label = "Umur", value = "${goat.age} Th")
-                    }
-
-                    // Right Column
-                    Column(
-                        modifier = Modifier.weight(0.95f),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        DetailDotItem(label = "Peternak", value = "Wahyu Farm")
-                        
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            DetailDotItem(label = "Peternak", value = "")
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(start = 14.dp)
-                            ) {
-                                CustomLocationPinIcon(modifier = Modifier.size(14.dp), tint = Color(0xFFE53935))
-                                Text(
-                                    text = "${goat.location}, Jl. Muslihun",
-                                    fontSize = 11.sp,
-                                    color = Color.Gray,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-
-                        // Map View Card
-                        MapCanvas(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(94.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Description
-                Text(
-                    text = "Deskripsi",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.Black
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = goat.description.ifBlank { "Kambing Etawa Jantan unggulan, sehat, gemuk, dan siap untuk Qurban atau Aqiqah." },
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    color = Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Likes indicator
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
-                        contentDescription = "Likes",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "4,8 Like",
-                        fontSize = 13.sp,
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // Sticky Bottom CTA Actions Bar
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter),
-                color = Color.White,
-                tonalElevation = 8.dp,
-                shadowElevation = 8.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Chat Penjual Button (Outlined)
-                    Button(
-                        onClick = onChat,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color(0xFF2E7D32)
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFF2E7D32)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            "Chat Penjual",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                    // Pesan Sekarang Button (Filled)
-                    Button(
-                        onClick = onOrder,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2E7D32),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            "Pesan Sekarang",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DetailDotItem(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(top = 6.dp)
-                .size(6.dp)
-                .background(Color(0xFF2E7D32), CircleShape)
-        )
-        Column {
-            Text(
-                text = label,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                color = Color.Black
-            )
-            if (value.isNotEmpty()) {
-                Text(
-                    text = value,
-                    fontSize = 13.sp,
-                    color = Color.Gray
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun MapCanvas(modifier: Modifier = Modifier) {
-    Canvas(
-        modifier = modifier
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-    ) {
-        drawRect(Color(0xFFF4F6F4))
-        val w = size.width
-        val h = size.height
-
-        val roadColor = Color.White
-        val stroke = 6.dp.toPx()
-
-        // Draw roads
-        drawLine(roadColor, Offset(0f, h * 0.45f), Offset(w, h * 0.45f), strokeWidth = stroke)
-        drawLine(roadColor, Offset(w * 0.35f, 0f), Offset(w * 0.35f, h), strokeWidth = stroke)
-        drawLine(roadColor, Offset(w * 0.35f, h * 0.45f), Offset(w, h * 0.85f), strokeWidth = stroke)
-
-        // Draw location red marker
-        val pin = Offset(w * 0.65f, h * 0.58f)
-        drawCircle(Color(0xFFE53935), radius = 6.dp.toPx(), center = pin)
-        drawCircle(Color.White, radius = 2.dp.toPx(), center = pin)
-    }
-}
 
 // -------------------------------------------------------------
 // SUB-SCREEN 2: STEP 1 (DATA DIRI FORM)
