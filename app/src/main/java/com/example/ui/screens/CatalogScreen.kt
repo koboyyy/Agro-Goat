@@ -1384,12 +1384,12 @@ fun BookingSuccessView(
                 contentAlignment = Alignment.Center
             ) {
                 // Checkmark
+                val p = remember { Path() }
                 Canvas(modifier = Modifier.size(34.dp)) {
-                    val p = Path().apply {
-                        moveTo(size.width * 0.15f, size.height * 0.52f)
-                        lineTo(size.width * 0.44f, size.height * 0.8f)
-                        lineTo(size.width * 0.88f, size.height * 0.24f)
-                    }
+                    p.reset()
+                    p.moveTo(size.width * 0.15f, size.height * 0.52f)
+                    p.lineTo(size.width * 0.44f, size.height * 0.8f)
+                    p.lineTo(size.width * 0.88f, size.height * 0.24f)
                     drawPath(p, color = Color.White, style = Stroke(width = 5.dp.toPx()))
                 }
             }

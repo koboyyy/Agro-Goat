@@ -573,50 +573,50 @@ fun GoatVerticalRowItem(
 
 @Composable
 fun ShieldCheckIcon(modifier: Modifier = Modifier, tint: Color = Color(0xFF2E7D32)) {
+    val path = remember { Path() }
+    val check = remember { Path() }
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
         
         // Draw shield path
-        val path = Path().apply {
-            moveTo(w * 0.5f, h * 0.15f)
-            lineTo(w * 0.8f, h * 0.25f)
-            quadraticTo(w * 0.8f, h * 0.6f, w * 0.5f, h * 0.85f)
-            quadraticTo(w * 0.2f, h * 0.6f, w * 0.2f, h * 0.25f)
-            close()
-        }
+        path.reset()
+        path.moveTo(w * 0.5f, h * 0.15f)
+        path.lineTo(w * 0.8f, h * 0.25f)
+        path.quadraticTo(w * 0.8f, h * 0.6f, w * 0.5f, h * 0.85f)
+        path.quadraticTo(w * 0.2f, h * 0.6f, w * 0.2f, h * 0.25f)
+        path.close()
         drawPath(path, color = tint, style = Stroke(width = w * 0.08f))
         
         // Draw checkmark
-        val check = Path().apply {
-            moveTo(w * 0.38f, h * 0.48f)
-            lineTo(w * 0.48f, h * 0.58f)
-            lineTo(w * 0.68f, h * 0.38f)
-        }
+        check.reset()
+        check.moveTo(w * 0.38f, h * 0.48f)
+        check.lineTo(w * 0.48f, h * 0.58f)
+        check.lineTo(w * 0.68f, h * 0.38f)
         drawPath(check, color = tint, style = Stroke(width = w * 0.08f))
     }
 }
 
 @Composable
 fun HandDeliveryIcon(modifier: Modifier = Modifier, tint: Color = Color(0xFF2E7D32)) {
+    val path = remember { Path() }
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
         
         val strokeWidth = w * 0.08f
-        val path = Path().apply {
-            moveTo(w * 0.2f, h * 0.4f)
-            lineTo(w * 0.5f, h * 0.4f)
-            lineTo(w * 0.5f, h * 0.7f)
-            lineTo(w * 0.2f, h * 0.7f)
-            close()
-            
-            moveTo(w * 0.5f, h * 0.5f)
-            lineTo(w * 0.75f, h * 0.5f)
-            lineTo(w * 0.85f, h * 0.62f)
-            lineTo(w * 0.85f, h * 0.7f)
-            lineTo(w * 0.5f, h * 0.7f)
-        }
+        path.reset()
+        path.moveTo(w * 0.2f, h * 0.4f)
+        path.lineTo(w * 0.5f, h * 0.4f)
+        path.lineTo(w * 0.5f, h * 0.7f)
+        path.lineTo(w * 0.2f, h * 0.7f)
+        path.close()
+        
+        path.moveTo(w * 0.5f, h * 0.5f)
+        path.lineTo(w * 0.75f, h * 0.5f)
+        path.lineTo(w * 0.85f, h * 0.62f)
+        path.lineTo(w * 0.85f, h * 0.7f)
+        path.lineTo(w * 0.5f, h * 0.7f)
         drawPath(path, color = tint, style = Stroke(width = strokeWidth))
         
         // wheels

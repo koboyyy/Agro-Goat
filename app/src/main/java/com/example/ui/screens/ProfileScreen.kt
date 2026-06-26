@@ -32,6 +32,7 @@ import com.example.viewmodel.AppTab
 @Composable
 fun ProfileScreen(
     viewModel: AgroGoatViewModel,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -186,6 +187,7 @@ fun ProfileScreen(
             OutlinedButton(
                 onClick = {
                     Toast.makeText(context, "Berhasil keluar dari akun.", Toast.LENGTH_SHORT).show()
+                    onLogout()
                 },
                 border = BorderStroke(1.dp, Color(0xFFEF5350)),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF5350)),

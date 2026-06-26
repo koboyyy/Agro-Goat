@@ -82,16 +82,16 @@ fun SegmentedSpinner(modifier: Modifier = Modifier, color: Color = Color.White) 
 
 @Composable
 fun CustomEyeIcon(visible: Boolean, tint: Color, modifier: Modifier = Modifier) {
+    val path = remember { Path() }
     Canvas(modifier = modifier.size(22.dp)) {
         val w = size.width
         val h = size.height
         val cx = w / 2f
         val cy = h / 2f
-        val path = Path().apply {
-            moveTo(w * 0.15f, cy)
-            quadraticTo(cx, cy - h * 0.32f, w * 0.85f, cy)
-            quadraticTo(cx, cy + h * 0.32f, w * 0.15f, cy)
-        }
+        path.reset()
+        path.moveTo(w * 0.15f, cy)
+        path.quadraticTo(cx, cy - h * 0.32f, w * 0.85f, cy)
+        path.quadraticTo(cx, cy + h * 0.32f, w * 0.15f, cy)
         drawPath(path, color = tint, style = Stroke(width = 1.8.dp.toPx()))
         drawCircle(color = tint, radius = w * 0.14f, center = Offset(cx, cy))
         if (!visible) {
@@ -135,12 +135,12 @@ fun SuccessPopup(
                     .background(Color(0xFF1F6E35)),
                 contentAlignment = Alignment.Center
             ) {
+                val p = remember { Path() }
                 Canvas(modifier = Modifier.size(16.dp)) {
-                    val p = Path().apply {
-                        moveTo(size.width * 0.15f, size.height * 0.5f)
-                        lineTo(size.width * 0.45f, size.height * 0.8f)
-                        lineTo(size.width * 0.85f, size.height * 0.2f)
-                    }
+                    p.reset()
+                    p.moveTo(size.width * 0.15f, size.height * 0.5f)
+                    p.lineTo(size.width * 0.45f, size.height * 0.8f)
+                    p.lineTo(size.width * 0.85f, size.height * 0.2f)
                     drawPath(p, color = Color.White, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
                 }
             }
@@ -892,12 +892,12 @@ fun LoginScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isTermsAccepted) {
+                                    val p = remember { Path() }
                                     Canvas(modifier = Modifier.size(10.dp)) {
-                                        val p = Path().apply {
-                                            moveTo(size.width * 0.15f, size.height * 0.5f)
-                                            lineTo(size.width * 0.45f, size.height * 0.8f)
-                                            lineTo(size.width * 0.85f, size.height * 0.2f)
-                                        }
+                                        p.reset()
+                                        p.moveTo(size.width * 0.15f, size.height * 0.5f)
+                                        p.lineTo(size.width * 0.45f, size.height * 0.8f)
+                                        p.lineTo(size.width * 0.85f, size.height * 0.2f)
                                         drawPath(p, color = Color.White, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
                                     }
                                 }

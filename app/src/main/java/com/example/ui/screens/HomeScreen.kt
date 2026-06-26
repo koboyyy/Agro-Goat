@@ -79,12 +79,14 @@ fun HomeScreen(
     }
 
     // Filtered lists
-    val filteredGoats = goats.filter { goat ->
-        val matchesSearch = goat.name.contains(searchQuery, ignoreCase = true) ||
-                goat.location.contains(searchQuery, ignoreCase = true)
-        val matchesCategory = selectedHomeCategory == null || goat.category == selectedHomeCategory
-        val matchesGender = selectedGenderFilter == "Semua" || goat.gender.equals(selectedGenderFilter, ignoreCase = true)
-        matchesSearch && matchesCategory && matchesGender
+    val filteredGoats = remember(goats, searchQuery, selectedHomeCategory, selectedGenderFilter) {
+        goats.filter { goat ->
+            val matchesSearch = goat.name.contains(searchQuery, ignoreCase = true) ||
+                    goat.location.contains(searchQuery, ignoreCase = true)
+            val matchesCategory = selectedHomeCategory == null || goat.category == selectedHomeCategory
+            val matchesGender = selectedGenderFilter == "Semua" || goat.gender.equals(selectedGenderFilter, ignoreCase = true)
+            matchesSearch && matchesCategory && matchesGender
+        }
     }
 
     when (currentSubScreen) {

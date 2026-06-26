@@ -639,6 +639,10 @@ fun OrderStepper(status: OrderStatus) {
 
 @Composable
 fun PackageIcon(modifier: Modifier = Modifier) {
+    val leftPath = remember { Path() }
+    val rightPath = remember { Path() }
+    val topPath = remember { Path() }
+    val tapePath = remember { Path() }
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -649,43 +653,39 @@ fun PackageIcon(modifier: Modifier = Modifier) {
         val tapeColor = Color(0xFF5D4037)
 
         // Left side
-        val leftPath = Path().apply {
-            moveTo(w * 0.15f, h * 0.4f)
-            lineTo(w * 0.5f, h * 0.6f)
-            lineTo(w * 0.5f, h * 0.9f)
-            lineTo(w * 0.15f, h * 0.7f)
-            close()
-        }
+        leftPath.reset()
+        leftPath.moveTo(w * 0.15f, h * 0.4f)
+        leftPath.lineTo(w * 0.5f, h * 0.6f)
+        leftPath.lineTo(w * 0.5f, h * 0.9f)
+        leftPath.lineTo(w * 0.15f, h * 0.7f)
+        leftPath.close()
         drawPath(leftPath, color = mediumBrown)
 
         // Right side
-        val rightPath = Path().apply {
-            moveTo(w * 0.5f, h * 0.6f)
-            lineTo(w * 0.85f, h * 0.4f)
-            lineTo(w * 0.85f, h * 0.7f)
-            lineTo(w * 0.5f, h * 0.9f)
-            close()
-        }
+        rightPath.reset()
+        rightPath.moveTo(w * 0.5f, h * 0.6f)
+        rightPath.lineTo(w * 0.85f, h * 0.4f)
+        rightPath.lineTo(w * 0.85f, h * 0.7f)
+        rightPath.lineTo(w * 0.5f, h * 0.9f)
+        rightPath.close()
         drawPath(rightPath, color = darkBrown)
 
         // Top side
-        val topPath = Path().apply {
-            moveTo(w * 0.5f, h * 0.2f)
-            lineTo(w * 0.85f, h * 0.4f)
-            lineTo(w * 0.5f, h * 0.6f)
-            lineTo(w * 0.15f, h * 0.4f)
-            close()
-        }
+        topPath.reset()
+        topPath.moveTo(w * 0.5f, h * 0.2f)
+        topPath.lineTo(w * 0.85f, h * 0.4f)
+        topPath.lineTo(w * 0.5f, h * 0.6f)
+        topPath.lineTo(w * 0.15f, h * 0.4f)
+        topPath.close()
         drawPath(topPath, color = lightBrown)
 
         // Tape on top
-        val tapePath = Path().apply {
-            moveTo(w * 0.4f, h * 0.26f)
-            lineTo(w * 0.75f, h * 0.46f)
-            lineTo(w * 0.6f, h * 0.54f)
-            lineTo(w * 0.25f, h * 0.34f)
-            close()
-        }
+        tapePath.reset()
+        tapePath.moveTo(w * 0.4f, h * 0.26f)
+        tapePath.lineTo(w * 0.75f, h * 0.46f)
+        tapePath.lineTo(w * 0.6f, h * 0.54f)
+        tapePath.lineTo(w * 0.25f, h * 0.34f)
+        tapePath.close()
         drawPath(tapePath, color = tapeColor)
     }
 }

@@ -83,7 +83,13 @@ fun MainAppShell(
                     AppTab.KATALOG -> CatalogScreen(viewModel)
                     AppTab.CHAT -> ChatScreen(viewModel)
                     AppTab.PESANAN -> OrdersScreen(viewModel)
-                    AppTab.PROFIL -> ProfileScreen(viewModel)
+                    AppTab.PROFIL -> ProfileScreen(
+                        viewModel = viewModel,
+                        onLogout = {
+                            isLoggedIn = false
+                            viewModel.setTab(AppTab.BERANDA)
+                        }
+                    )
                     AppTab.NOTIFIKASI -> NotificationScreen(viewModel)
                     AppTab.PEMBAYARAN -> PaymentScreen(viewModel)
                     AppTab.LACAK_PESANAN -> {
