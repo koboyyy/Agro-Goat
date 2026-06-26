@@ -1,0 +1,29 @@
+{
+    "project_info": {
+        "project_number": "1034459376734",
+        "project_id": "agro-goat",
+        "storage_bucket": "agro-goat.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:1034459376734:android:876ca0ba54718bac5f18cf",
+                "android_client_info": {
+                    "package_name": "com.agrogoat.app"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyD27uN4iA2oUPTcDHdasJ8HnWtnKzzq4X0"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

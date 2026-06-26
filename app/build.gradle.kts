@@ -4,14 +4,17 @@ plugins {
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
+
+  //firebase
+  alias(libs.plugins.google.gms.google-services)
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.agrogoat.app"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.example"
+    applicationId = "com.agrogoat.app"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
@@ -119,4 +122,8 @@ dependencies {
 
   //Compose BOM
   implementation("androidx.compose.material:material-icons-extended:<versi-compose>")
+
+  //Firebase
+  implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
+  implementation("com.google.firebase:firebase-analytics")
 }
