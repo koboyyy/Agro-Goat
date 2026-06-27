@@ -42,7 +42,7 @@ fun GoatInfoGrid(
         ) {
             DetailItem(
                 title = "Peternak",
-                value = "Wahyu Farm"
+                value = goat.sellerEmail
             )
 
             DetailItem(

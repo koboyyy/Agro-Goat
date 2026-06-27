@@ -1,123 +1,69 @@
 package com.agrogoat.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.agrogoat.app.data.*
-import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
+import java.util.*
+
+enum class ChatScreenState { LIST, DETAIL }
 
 enum class AppTab {
-    BERANDA,
-    KATALOG,
-    CHAT,
-    PESANAN,
-    PROFIL,
-    LACAK_PESANAN,
-    NOTIFIKASI,
-    PEMBAYARAN
+    BERANDA, KATALOG, CHAT, PESANAN, PROFIL, LACAK_PESANAN, NOTIFIKASI, PEMBAYARAN
 }
 
 enum class CatalogSort {
-    TERBARU,
-    HARGA_RENDAH,
-    HARGA_TINGGI,
-    BOBOT_TERBESAR
+    TERBARU, HARGA_RENDAH, HARGA_TINGGI, BOBOT_TERBESAR
 }
 
 class AgroGoatViewModel : ViewModel() {
 
-    // Internet connectivity state
-    private val _isOnline = MutableStateFlow(true)
-    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 
-    fun setOnlineStatus(online: Boolean) {
-        _isOnline.value = online
-    }
-
-    private val db: FirebaseFirestore? by lazy {
-        try {
-            FirebaseFirestore.getInstance()
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private var goatsListener: ListenerRegistration? = null
-    private var ordersListener: ListenerRegistration? = null
-    private var messagesListener: ListenerRegistration? = null
-    private var notificationsListener: ListenerRegistration? = null
-    private var profileListener: ListenerRegistration? = null
-
-    // Theme state (false = light theme, true = dark theme)
-    private val _isDarkTheme = MutableStateFlow(false)
-    val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
-
-    fun toggleTheme() {
-        _isDarkTheme.value = !_isDarkTheme.value
-    }
-
-    // Bottom bar visibility override
-    private val _hideBottomBar = MutableStateFlow(false)
-    val hideBottomBar: StateFlow<Boolean> = _hideBottomBar.asStateFlow()
-
-    fun setHideBottomBar(hide: Boolean) {
-        _hideBottomBar.value = hide
-    }
-
-    // Tab Navigation
-    private val _currentTab = MutableStateFlow(AppTab.BERANDA)
-    val currentTab: StateFlow<AppTab> = _currentTab.asStateFlow()
-
-    // State for specific flows
-    private val _selectedOrderForTracking = MutableStateFlow<OrderItem?>(null)
-    val selectedOrderForTracking: StateFlow<OrderItem?> = _selectedOrderForTracking.asStateFlow()
-
-    private val _selectedOrderForPayment = MutableStateFlow<OrderItem?>(null)
-    val selectedOrderForPayment: StateFlow<OrderItem?> = _selectedOrderForPayment.asStateFlow()
+    // Auth State
+    private val _currentUser = MutableStateFlow<FirebaseUser?>(auth.currentUser)
+    val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
 
     // User details
-    private val _userName = MutableStateFlow("Siti Zahfia")
+    private val _userName = MutableStateFlow("")
     val userName: StateFlow<String> = _userName.asStateFlow()
 
-    private val _userBalance = MutableStateFlow(12500000L) // in IDR
+    private val _userBalance = MutableStateFlow(0L)
     val userBalance: StateFlow<Long> = _userBalance.asStateFlow()
 
-    private val _userAddress = MutableStateFlow("Bengkalis, Riau")
+    private val _userAddress = MutableStateFlow("")
     val userAddress: StateFlow<String> = _userAddress.asStateFlow()
 
-    private val _userRole = MutableStateFlow("Pedagang") // default role (Pedagang / Penjual)
+    private val _userRole = MutableStateFlow("Pedagang")
     val userRole: StateFlow<String> = _userRole.asStateFlow()
 
-    // Search & Filter state
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    private val _userEmail = MutableStateFlow("")
+    val userEmail: StateFlow<String> = _userEmail.asStateFlow()
 
-    private val _selectedHomeCategory = MutableStateFlow<GoatCategory?>(null)
-    val selectedHomeCategory: StateFlow<GoatCategory?> = _selectedHomeCategory.asStateFlow()
-
-    // Catalog state
-    private val _selectedCatalogCategory = MutableStateFlow<GoatCategory?>(null)
-    val selectedCatalogCategory: StateFlow<GoatCategory?> = _selectedCatalogCategory.asStateFlow()
-
-    private val _catalogSort = MutableStateFlow(CatalogSort.TERBARU)
-    val catalogSort: StateFlow<CatalogSort> = _catalogSort.asStateFlow()
-
-    private val _showFavoritesOnly = MutableStateFlow(false)
-    val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
+    private val _userPhone = MutableStateFlow("")
+    val userPhone: StateFlow<String> = _userPhone.asStateFlow()
 
     // Data lists
     private val _goats = MutableStateFlow<List<GoatItem>>(emptyList())
     val goats: StateFlow<List<GoatItem>> = _goats.asStateFlow()
+
+    private val _myGoats = MutableStateFlow<List<GoatItem>>(emptyList())
+    val myGoats: StateFlow<List<GoatItem>> = _myGoats.asStateFlow()
 
     private val _orders = MutableStateFlow<List<OrderItem>>(emptyList())
     val orders: StateFlow<List<OrderItem>> = _orders.asStateFlow()
@@ -128,89 +74,596 @@ class AgroGoatViewModel : ViewModel() {
     private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
     val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
 
-    // UI state loaders/triggerers
+    private val _chatRooms = MutableStateFlow<List<ChatRoom>>(emptyList())
+    val chatRooms: StateFlow<List<ChatRoom>> = _chatRooms.asStateFlow()
+
+    private val _usersProfiles = MutableStateFlow<Map<String, Map<String, Any?>>>(emptyMap())
+    val usersProfiles: StateFlow<Map<String, Map<String, Any?>>> = _usersProfiles.asStateFlow()
+
+    private val _chatScreenState = MutableStateFlow(ChatScreenState.LIST)
+    val chatScreenState: StateFlow<ChatScreenState> = _chatScreenState.asStateFlow()
+
+    private val _selectedChatRoom = MutableStateFlow<ChatRoom?>(null)
+    val selectedChatRoom: StateFlow<ChatRoom?> = _selectedChatRoom.asStateFlow()
+
+    private val _activeChatRoomId = MutableStateFlow<String?>(null)
+    val activeChatRoomId: StateFlow<String?> = _activeChatRoomId.asStateFlow()
+
+    private val _activePartnerOnline = MutableStateFlow(false)
+    val activePartnerOnline: StateFlow<Boolean> = _activePartnerOnline.asStateFlow()
+
+    private val _activePartnerLastSeen = MutableStateFlow("")
+    val activePartnerLastSeen: StateFlow<String> = _activePartnerLastSeen.asStateFlow()
+
+    val chatInboxRooms = combine(_chatRooms, _usersProfiles, _userRole, _userEmail) { chatRooms, profiles, role, userEmail ->
+        val currentUid = auth.currentUser?.uid ?: ""
+        if (role == "Penjual") {
+            chatRooms.filter { room ->
+                room.sellerEmail.equals(userEmail, ignoreCase = true) || room.participants.contains(userEmail) || room.participants.contains(currentUid)
+            }.map { room ->
+                val otherEmail = if (room.buyerEmail.isNotEmpty()) room.buyerEmail else {
+                    room.participants.firstOrNull { !it.equals(userEmail, ignoreCase = true) && it.contains("@") } ?: ""
+                }
+                val otherUid = room.participants.firstOrNull { !it.contains("@") && it != userEmail && it != currentUid } ?: ""
+                val otherProfile = profiles[otherUid] ?: profiles[otherEmail.lowercase()]
+                val otherName = otherProfile?.get("name") as? String 
+                    ?: otherEmail.substringBefore("@")
+                    ?: "Pembeli"
+                val initials = otherName.split(" ").mapNotNull { it.firstOrNull() }.joinToString("").take(2).uppercase()
+                room.copy(
+                    name = if (otherName.isNotEmpty()) otherName else "Pembeli",
+                    initials = if (initials.isNotEmpty()) initials else "??"
+                )
+            }
+        } else {
+            val activeInbox = chatRooms.filter { room ->
+                room.buyerEmail.equals(userEmail, ignoreCase = true) || room.participants.contains(userEmail) || room.participants.contains(currentUid)
+            }.map { room ->
+                val otherEmail = if (room.sellerEmail.isNotEmpty()) room.sellerEmail else {
+                    room.participants.firstOrNull { !it.equals(userEmail, ignoreCase = true) && it.contains("@") } ?: ""
+                }
+                val otherUid = room.participants.firstOrNull { !it.contains("@") && it != userEmail && it != currentUid } ?: ""
+                val otherProfile = profiles[otherUid] ?: profiles[otherEmail.lowercase()]
+                val otherName = otherProfile?.get("name") as? String 
+                    ?: otherEmail.substringBefore("@")
+                    ?: "Penjual"
+                val initials = otherName.split(" ").mapNotNull { it.firstOrNull() }.joinToString("").take(2).uppercase()
+                room.copy(
+                    name = if (otherName.isNotEmpty()) otherName else "Penjual",
+                    initials = if (initials.isNotEmpty()) initials else "??"
+                )
+            }
+
+            val sellers = profiles.filter { entry ->
+                !entry.key.contains("@") && (
+                    (entry.value["role"] as? String)?.equals("Penjual", ignoreCase = true) == true ||
+                    (entry.value["roles"] as? List<*>)?.any { (it as? String).equals("Penjual", ignoreCase = true) } == true
+                )
+            }
+
+            val potentialInbox = sellers.mapNotNull { (sellerUid, sellerProfile) ->
+                val sellerEmail = sellerProfile["email"] as? String ?: sellerUid
+                val sellerName = sellerProfile["name"] as? String ?: sellerEmail.substringBefore("@")
+                val initials = sellerName.split(" ").mapNotNull { it.firstOrNull() }.joinToString("").take(2).uppercase()
+                
+                val hasActive = activeInbox.any { it.sellerEmail.equals(sellerEmail, ignoreCase = true) }
+                if (hasActive) {
+                    null
+                } else {
+                    ChatRoom(
+                        id = "${userEmail}_${sellerEmail}".replace(".", "_"),
+                        name = sellerName,
+                        lastMessage = "Mulai percakapan...",
+                        initials = if (initials.isNotEmpty()) initials else "??",
+                        hasCheckmark = false,
+                        hasBorder = false,
+                        sellerEmail = sellerEmail,
+                        buyerEmail = userEmail,
+                        participants = listOf(userEmail, sellerEmail, currentUid, sellerUid)
+                    )
+                }
+            }
+
+            activeInbox + potentialInbox
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val activeChatMessages = combine(_messages, _activeChatRoomId) { messages, roomId ->
+        if (roomId == null) {
+            emptyList()
+        } else {
+            messages.filter { msg ->
+                msg.chatRoomId == roomId || (msg.chatRoomId.isEmpty() && (msg.participants.contains(roomId) || 
+                    (roomId.contains("_") && roomId.split("_").all { p -> msg.participants.any { it.contains(p) } })))
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // UI States
+    private val _currentTab = MutableStateFlow(AppTab.BERANDA)
+    val currentTab: StateFlow<AppTab> = _currentTab.asStateFlow()
+
+    private val _targetSellerEmail = MutableStateFlow<String?>(null)
+    val targetSellerEmail: StateFlow<String?> = _targetSellerEmail.asStateFlow()
+
+    private val _hideBottomBar = MutableStateFlow(false)
+    val hideBottomBar: StateFlow<Boolean> = _hideBottomBar.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _selectedHomeCategory = MutableStateFlow<GoatCategory?>(null)
+    val selectedHomeCategory: StateFlow<GoatCategory?> = _selectedHomeCategory.asStateFlow()
+
+    private val _isOnline = MutableStateFlow(true)
+    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+
+    private val _isDarkTheme = MutableStateFlow(false)
+    val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
+
+    private val _selectedOrderForTracking = MutableStateFlow<OrderItem?>(null)
+    val selectedOrderForTracking: StateFlow<OrderItem?> = _selectedOrderForTracking.asStateFlow()
+
+    private val _selectedOrderForPayment = MutableStateFlow<OrderItem?>(null)
+    val selectedOrderForPayment: StateFlow<OrderItem?> = _selectedOrderForPayment.asStateFlow()
+
+    private val _catalogSort = MutableStateFlow(CatalogSort.TERBARU)
+    val catalogSort: StateFlow<CatalogSort> = _catalogSort.asStateFlow()
+
+    private val _showFavoritesOnly = MutableStateFlow(false)
+    val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
+
+    // Listeners
+    private var profileListener: ListenerRegistration? = null
+    private var goatsListener: ListenerRegistration? = null
+    private var myGoatsListener: ListenerRegistration? = null
+    private var ordersListener: ListenerRegistration? = null
+    private var messagesListener: ListenerRegistration? = null
+    private var notificationsListener: ListenerRegistration? = null
+    private var chatRoomsListener: ListenerRegistration? = null
+    private var usersProfilesListener: ListenerRegistration? = null
+    private var activePartnerPresenceListener: ListenerRegistration? = null
+
+    private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        val user = firebaseAuth.currentUser
+        _currentUser.value = user
+        if (user != null) {
+            setupFirestoreListeners(user.uid)
+        } else {
+            clearListeners()
+            resetUserData()
+        }
+    }
+
     init {
-        try {
-            db?.clearPersistence()
-        } catch (e: Exception) {
-            // Ignore
-        }
-        setupFirestoreListeners()
+        auth.addAuthStateListener(authStateListener)
     }
 
-    fun clearAllFirestoreData() {
-        val database = db ?: return
-        val collections = listOf("goats", "orders", "messages", "notifications", "users_profiles", "users")
-        for (col in collections) {
-            database.collection(col).get().addOnSuccessListener { snapshot ->
+    private fun setupFirestoreListeners(uid: String) {
+        clearListeners()
+        updateUserPresence(true)
+
+        // 1. Profil Pengguna (users/{uid})
+        profileListener = db.collection("users").document(uid).addSnapshotListener { snapshot, e ->
+            if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+            _userName.value = snapshot.getString("name") ?: ""
+            _userAddress.value = snapshot.getString("address") ?: ""
+            _userBalance.value = snapshot.getLong("balance") ?: 0L
+            _userRole.value = snapshot.getString("role") ?: "Pedagang"
+            val email = snapshot.getString("email") ?: ""
+            _userEmail.value = email
+            _userPhone.value = snapshot.getString("phone") ?: ""
+            
+            setupMyGoatsListener(uid, email)
+            setupChatRoomsListener(uid, email)
+            setupMessagesListener(email)
+        }
+
+        // 2. Katalog Kambing (Publik)
+        goatsListener = db.collection("goats").addSnapshotListener { snapshot, _ ->
+            snapshot?.let {
+                _goats.value = it.documents.mapNotNull { doc -> mapToGoatItem(doc.data ?: emptyMap()) }
+            }
+        }
+
+        // 3. Pesanan Saya (Filter berdasarkan buyerUid)
+        ordersListener = db.collection("orders")
+            .whereEqualTo("buyerUid", uid)
+            .addSnapshotListener { snapshot, _ ->
+                snapshot?.let {
+                    _orders.value = it.documents.mapNotNull { doc -> mapToOrderItem(doc.data ?: emptyMap()) }
+                        .sortedByDescending { it.orderDate }
+                }
+            }
+
+        // 4. Notifikasi (Filter berdasarkan userId)
+        notificationsListener = db.collection("notifications")
+            .whereEqualTo("userId", uid)
+            .addSnapshotListener { snapshot, _ ->
+                snapshot?.let {
+                    _notifications.value = it.documents.mapNotNull { doc -> mapToNotificationItem(doc.data ?: emptyMap()) }
+                        .sortedByDescending { it.id }
+                }
+            }
+
+        // 6. Profil Semua Pengguna (untuk resolusi nama chat)
+        usersProfilesListener?.remove()
+        usersProfilesListener = db.collection("users_profiles").addSnapshotListener { snapshot, e ->
+            if (e != null || snapshot == null) return@addSnapshotListener
+            val profilesMap = snapshot.documents.associate { doc ->
+                doc.id to (doc.data ?: emptyMap())
+            }.toMutableMap()
+            
+            // Also index by email to allow query lookups using email address
+            snapshot.documents.forEach { doc ->
+                val data = doc.data ?: emptyMap()
+                val email = data["email"] as? String ?: ""
+                if (email.isNotEmpty()) {
+                    profilesMap[email.lowercase()] = data
+                }
+            }
+            _usersProfiles.value = profilesMap
+        }
+    }
+
+    private fun setupMyGoatsListener(uid: String, email: String) {
+        myGoatsListener?.remove()
+        myGoatsListener = db.collection("goats")
+            .addSnapshotListener { snapshot, _ ->
+                snapshot?.let {
+                    val allGoats = it.documents.mapNotNull { doc -> mapToGoatItem(doc.data ?: emptyMap()) }
+                    _myGoats.value = allGoats.filter { goat ->
+                        goat.sellerUid == uid || (goat.sellerEmail != null && goat.sellerEmail.equals(email, ignoreCase = true))
+                    }
+                }
+            }
+    }
+
+    private fun setupChatRoomsListener(uid: String, email: String) {
+        chatRoomsListener?.remove()
+        chatRoomsListener = db.collection("chat_rooms")
+            .whereArrayContains("participants", email)
+            .addSnapshotListener { snapshot, _ ->
+                snapshot?.let {
+                    _chatRooms.value = it.documents.map { doc ->
+                        val data = doc.data ?: emptyMap()
+                        ChatRoom(
+                            id = doc.id,
+                            name = data["name"] as? String ?: "Admin",
+                            lastMessage = data["lastMessage"] as? String ?: "",
+                            initials = data["initials"] as? String ?: "??",
+                            hasCheckmark = data["hasCheckmark"] as? Boolean ?: false,
+                            sellerEmail = data["sellerEmail"] as? String ?: "",
+                            buyerEmail = data["buyerEmail"] as? String ?: "",
+                            participants = (data["participants"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        )
+                    }
+                }
+            }
+    }
+
+    private fun setupMessagesListener(email: String) {
+        messagesListener?.remove()
+        messagesListener = db.collection("messages")
+            .whereArrayContains("participants", email)
+            .addSnapshotListener { snapshot, _ ->
+                snapshot?.let {
+                    _messages.value = it.documents.mapNotNull { doc -> mapToMessageItem(doc.data ?: emptyMap()) }
+                        .sortedWith(compareBy({ it.timestamp }, { it.id }))
+                }
+            }
+    }
+
+    // --- AUTH FUNCTIONS ---
+    fun login(email: String, pass: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        auth.signInWithEmailAndPassword(email, pass)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onError(e.message ?: "Login Gagal") }
+    }
+
+    fun register(email: String, pass: String, name: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        auth.createUserWithEmailAndPassword(email, pass)
+            .addOnSuccessListener { result ->
+                val uid = result.user?.uid ?: return@addOnSuccessListener
+                val userData = mapOf(
+                    "uid" to uid,
+                    "name" to name,
+                    "email" to email,
+                    "address" to "",
+                    "balance" to 0L,
+                    "role" to "Pedagang",
+                    "phone" to ""
+                )
+                db.collection("users").document(uid).set(userData).addOnSuccessListener { onSuccess() }
+            }
+            .addOnFailureListener { e -> onError(e.message ?: "Registrasi Gagal") }
+    }
+
+    fun logout() {
+        auth.signOut()
+        setTab(AppTab.BERANDA)
+    }
+
+    // --- PROFILE FUNCTIONS ---
+    fun updateProfile(name: String, address: String) {
+        val uid = auth.currentUser?.uid ?: return
+        val updates = mutableMapOf<String, Any>()
+        if (name.isNotBlank()) updates["name"] = name
+        if (address.isNotBlank()) updates["address"] = address
+        if (updates.isNotEmpty()) db.collection("users").document(uid).update(updates)
+    }
+
+    fun setUserProfile(name: String, address: String, balance: Long, role: String, email: String, phone: String) {
+        _userName.value = name
+        _userAddress.value = address
+        _userBalance.value = balance
+        _userRole.value = role
+        _userEmail.value = email
+        _userPhone.value = phone
+
+        val uid = auth.currentUser?.uid ?: return
+        val profileMap = mapOf(
+            "uid" to uid,
+            "name" to name,
+            "address" to address,
+            "balance" to balance,
+            "role" to role,
+            "roles" to listOf(role),
+            "email" to email,
+            "phone" to phone
+        )
+        db.collection("users").document(uid).set(profileMap, com.google.firebase.firestore.SetOptions.merge())
+        updateUserPresence(true)
+    }
+
+    fun topUpBalance(amount: Long) {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("users").document(uid).update("balance", FieldValue.increment(amount))
+    }
+
+    fun getUidForEmail(email: String): String? {
+        val entry = _usersProfiles.value.entries.find { 
+            !it.key.contains("@") && (it.value["email"] as? String)?.equals(email, ignoreCase = true) == true
+        }
+        return entry?.key
+    }
+
+    fun clearOldData(onComplete: () -> Unit = {}) {
+        val collections = listOf("goats", "chat_rooms", "messages", "orders")
+        var pending = collections.size
+        collections.forEach { colName ->
+            db.collection(colName).get().addOnSuccessListener { snapshot ->
+                val batch = db.batch()
+                snapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                batch.commit().addOnCompleteListener {
+                    pending--
+                    if (pending == 0) {
+                        onComplete()
+                    }
+                }
+            }.addOnFailureListener {
+                pending--
+                if (pending == 0) {
+                    onComplete()
+                }
+            }
+        }
+    }
+
+    // --- CHAT SECURITY EXAMPLE ---
+    fun sendMessage(content: String, recipientUid: String = "ADMIN_UID") {
+        var chatRoom = _selectedChatRoom.value
+        val userEmail = _userEmail.value
+        val uid = auth.currentUser?.uid ?: ""
+        if (content.isBlank()) return
+
+        if (chatRoom == null) {
+            val adminEmail = "admin@agrogoat.com"
+            val roomId = "${userEmail}_${adminEmail}".replace(".", "_")
+            chatRoom = ChatRoom(
+                id = roomId,
+                name = "Admin AgroGoat",
+                lastMessage = content,
+                initials = "AD",
+                hasCheckmark = false,
+                sellerEmail = adminEmail,
+                buyerEmail = userEmail,
+                participants = listOf(userEmail, adminEmail)
+            )
+            _selectedChatRoom.value = chatRoom
+            setActiveChatRoomId(roomId)
+        }
+
+        val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+        
+        // Participants will contain both UIDs and Emails of buyer and seller to be fully compatible and secure
+        val buyerEmail = chatRoom.buyerEmail
+        val sellerEmail = chatRoom.sellerEmail
+
+        val participantsSet = (chatRoom.participants + listOf(buyerEmail, sellerEmail, userEmail, uid)).filter { it.isNotEmpty() }.toMutableSet()
+        
+        val buyerUidResolved = getUidForEmail(buyerEmail) ?: (if (userEmail.equals(buyerEmail, ignoreCase = true)) uid else "")
+        val sellerUidResolved = getUidForEmail(sellerEmail) ?: (if (userEmail.equals(sellerEmail, ignoreCase = true)) uid else "")
+        
+        if (buyerUidResolved.isNotEmpty()) participantsSet.add(buyerUidResolved)
+        if (sellerUidResolved.isNotEmpty()) participantsSet.add(sellerUidResolved)
+        
+        val finalParticipants = participantsSet.toList()
+
+        val userMsg = MessageItem(
+            chatRoomId = chatRoom.id,
+            content = content,
+            sender = MessageSender.USER,
+            timestamp = timeStr,
+            senderEmail = userEmail,
+            participants = finalParticipants
+        )
+
+        db.collection("messages").document(userMsg.id).set(userMsg.toMap())
+
+        // Update last message in the chat room in Firestore
+        val chatRoomData = mapOf(
+            "id" to chatRoom.id,
+            "lastMessage" to content,
+            "hasCheckmark" to false,
+            "sellerEmail" to chatRoom.sellerEmail,
+            "buyerEmail" to chatRoom.buyerEmail,
+            "participants" to finalParticipants
+        )
+        db.collection("chat_rooms").document(chatRoom.id).set(chatRoomData, com.google.firebase.firestore.SetOptions.merge())
+        val recipientEmail = if (userEmail.equals(chatRoom.buyerEmail, ignoreCase = true)) chatRoom.sellerEmail else chatRoom.buyerEmail
+
+        // Simulasi balasan bot otomatis jika recipient adalah Admin
+        if (recipientEmail == "admin@agrogoat.com" || recipientEmail.contains("admin", ignoreCase = true)) {
+            viewModelScope.launch {
+                delay(1500)
+                val replyMsg = MessageItem(
+                    chatRoomId = chatRoom.id,
+                    content = "Halo! Tim AgroGoat telah menerima pesan Anda.",
+                    sender = MessageSender.SYSTEM,
+                    timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+                    senderEmail = recipientEmail,
+                    participants = finalParticipants
+                )
+                db.collection("messages").document(replyMsg.id).set(replyMsg.toMap())
+                
+                db.collection("chat_rooms").document(chatRoom.id).update("lastMessage", replyMsg.content)
+            }
+        }
+    }
+
+    fun startChatWith(email: String) {
+        val userEmail = _userEmail.value
+        val uid = auth.currentUser?.uid ?: ""
+        val roomId = "${userEmail}_${email}".replace(".", "_")
+        val existingRoom = chatInboxRooms.value.find { it.id == roomId || it.sellerEmail.equals(email, ignoreCase = true) }
+        
+        val sellerUid = getUidForEmail(email) ?: ""
+        val participantsList = mutableListOf(userEmail, email)
+        if (uid.isNotEmpty()) participantsList.add(uid)
+        if (sellerUid.isNotEmpty()) participantsList.add(sellerUid)
+
+        val room = existingRoom ?: ChatRoom(
+            id = roomId,
+            name = _usersProfiles.value[email.lowercase()]?.get("name") as? String ?: email.substringBefore("@"),
+            lastMessage = "Mulai percakapan...",
+            initials = email.take(2).uppercase(),
+            hasCheckmark = false,
+            hasBorder = false,
+            sellerEmail = email,
+            buyerEmail = userEmail,
+            participants = participantsList
+        )
+        
+        selectChatRoom(room)
+        setTab(AppTab.CHAT)
+    }
+
+    // --- CHAT NAVIGATION HELPERS ---
+    fun setChatScreenState(state: ChatScreenState) {
+        _chatScreenState.value = state
+        _hideBottomBar.value = (state == ChatScreenState.DETAIL)
+    }
+
+    fun selectChatRoom(room: ChatRoom) {
+        _selectedChatRoom.value = room
+        setActiveChatRoomId(room.id)
+        setChatScreenState(ChatScreenState.DETAIL)
+        val userEmail = _userEmail.value
+        val partnerEmail = if (userEmail.equals(room.buyerEmail, ignoreCase = true)) room.sellerEmail else room.buyerEmail
+        if (partnerEmail.isNotEmpty()) {
+            listenToActivePartnerPresence(partnerEmail)
+        }
+    }
+
+    fun goBackToChatList() {
+        setChatScreenState(ChatScreenState.LIST)
+        setActiveChatRoomId(null)
+        stopListeningToActivePartnerPresence()
+    }
+
+    fun updateUserPresence(isOnline: Boolean) {
+        val email = _userEmail.value
+        val uid = auth.currentUser?.uid ?: return
+        if (email.isEmpty()) return
+        
+        val timeStr = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")).format(Date())
+        val updates = mapOf(
+            "isOnline" to isOnline,
+            "lastSeen" to timeStr
+        )
+        db.collection("users_profiles").document(email).update(updates)
+        db.collection("users").document(uid).update(updates)
+    }
+
+    fun listenToActivePartnerPresence(partnerEmail: String) {
+        activePartnerPresenceListener?.remove()
+        _activePartnerOnline.value = false
+        _activePartnerLastSeen.value = ""
+        if (partnerEmail.isEmpty()) return
+
+        activePartnerPresenceListener = db.collection("users_profiles")
+            .document(partnerEmail)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                _activePartnerOnline.value = snapshot.getBoolean("isOnline") ?: false
+                _activePartnerLastSeen.value = snapshot.getString("lastSeen") ?: ""
+            }
+    }
+
+    fun stopListeningToActivePartnerPresence() {
+        activePartnerPresenceListener?.remove()
+        activePartnerPresenceListener = null
+        _activePartnerOnline.value = false
+        _activePartnerLastSeen.value = ""
+    }
+
+    fun setActiveChatRoomId(roomId: String?) {
+        _activeChatRoomId.value = roomId
+    }
+
+    // --- GOAT FUNCTIONS ---
+    fun addGoatItem(goat: GoatItem) {
+        db.collection("goats").document(goat.id).set(goat.toMap())
+    }
+
+    fun updateGoatItem(goat: GoatItem) {
+        db.collection("goats").document(goat.id).set(goat.toMap())
+    }
+
+    fun deleteGoatItem(id: String) {
+        db.collection("goats").document(id).delete()
+    }
+
+    // --- NOTIFICATION FUNCTIONS ---
+    fun markNotificationAsRead(id: String) {
+        db.collection("notifications").document(id).update("isRead", true)
+    }
+
+    fun markAllNotificationsAsRead() {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("notifications")
+            .whereEqualTo("userId", uid)
+            .get()
+            .addOnSuccessListener { snapshot ->
                 for (doc in snapshot.documents) {
-                    database.collection(col).document(doc.id).delete()
+                    doc.reference.update("isRead", true)
                 }
             }
-        }
     }
 
-    private fun setupFirestoreListeners() {
-        val database = db ?: return
-
-        // 1. Goats Listener
-        goatsListener = database.collection("goats").addSnapshotListener { snapshot, e ->
-            if (e != null) return@addSnapshotListener
-            if (snapshot != null) {
-                val list = snapshot.documents.mapNotNull { doc ->
-                    doc.data?.let { mapToGoatItem(it) }
-                }
-                _goats.value = list
-            }
-        }
-
-        // 2. Orders Listener
-        ordersListener = database.collection("orders").addSnapshotListener { snapshot, e ->
-            if (e != null) return@addSnapshotListener
-            if (snapshot != null) {
-                val list = snapshot.documents.mapNotNull { doc ->
-                    doc.data?.let { mapToOrderItem(it) }
-                }.sortedByDescending { it.orderDate }
-                _orders.value = list
-            }
-        }
-
-        // 3. Messages Listener
-        messagesListener = database.collection("messages").addSnapshotListener { snapshot, e ->
-            if (e != null) return@addSnapshotListener
-            if (snapshot != null) {
-                val list = snapshot.documents.mapNotNull { doc ->
-                    doc.data?.let { mapToMessageItem(it) }
-                }.sortedWith(compareBy({ it.timestamp }, { it.id }))
-                _messages.value = list
-            }
-        }
-
-        // 4. Notifications Listener
-        notificationsListener = database.collection("notifications").addSnapshotListener { snapshot, e ->
-            if (e != null) return@addSnapshotListener
-            if (snapshot != null) {
-                val list = snapshot.documents.mapNotNull { doc ->
-                    doc.data?.let { mapToNotificationItem(it) }
-                }.sortedByDescending { it.id }
-                _notifications.value = list
-            }
-        }
-
-        // 5. Profile Listener
-        profileListener = database.collection("users").document("current_user").addSnapshotListener { snapshot, e ->
-            if (e != null) return@addSnapshotListener
-            if (snapshot != null && snapshot.exists()) {
-                _userName.value = snapshot.getString("name") ?: ""
-                _userAddress.value = snapshot.getString("address") ?: ""
-                _userBalance.value = snapshot.getLong("balance") ?: 0L
-                _userRole.value = snapshot.getString("role") ?: "Pedagang"
-            }
-        }
+    // --- ORDER & PAYMENT FUNCTIONS ---
+    fun openPayment(order: OrderItem) {
+        _selectedOrderForPayment.value = order
+        setTab(AppTab.PEMBAYARAN)
     }
 
-    fun setTab(tab: AppTab) {
-        _currentTab.value = tab
+    fun processOrderPayment(orderId: String) {
+        db.collection("orders").document(orderId).update("status", OrderStatus.PACKING.name)
+        _selectedOrderForPayment.value = null
+        setTab(AppTab.PESANAN)
     }
 
     fun trackOrder(order: OrderItem) {
@@ -218,90 +671,28 @@ class AgroGoatViewModel : ViewModel() {
         setTab(AppTab.LACAK_PESANAN)
     }
 
-    fun openPayment(order: OrderItem) {
-        _selectedOrderForPayment.value = order
-        setTab(AppTab.PEMBAYARAN)
-    }
-
-    fun markNotificationAsRead(notifId: String) {
-        val database = db
-        if (database == null) {
-            _notifications.value = _notifications.value.map {
-                if (it.id == notifId) it.copy(isRead = true) else it
-            }
-            return
-        }
-        database.collection("notifications").document(notifId).update("isRead", true)
-    }
-
-    fun markAllNotificationsAsRead() {
-        val database = db
-        if (database == null) {
-            _notifications.value = _notifications.value.map { it.copy(isRead = true) }
-            return
-        }
-        for (notif in _notifications.value) {
-            if (!notif.isRead) {
-                database.collection("notifications").document(notif.id).update("isRead", true)
-            }
+    // --- HELPER FUNCTIONS ---
+    fun setTab(tab: AppTab) {
+        _currentTab.value = tab
+        if (tab != AppTab.CHAT) {
+            setChatScreenState(ChatScreenState.LIST)
+            setActiveChatRoomId(null)
+            _hideBottomBar.value = false
+        } else {
+            _hideBottomBar.value = (_chatScreenState.value == ChatScreenState.DETAIL)
         }
     }
+    fun setHideBottomBar(hide: Boolean) { _hideBottomBar.value = hide }
+    fun clearTargetChat() { _targetSellerEmail.value = null }
+    fun setSearchQuery(query: String) { _searchQuery.value = query }
+    fun setHomeCategory(category: GoatCategory?) { _selectedHomeCategory.value = if (_selectedHomeCategory.value == category) null else category }
 
-    fun updateProfile(name: String, address: String) {
-        val database = db
-        if (database == null) {
-            if (name.isNotBlank()) _userName.value = name
-            if (address.isNotBlank()) _userAddress.value = address
-            return
-        }
-        val updates = mutableMapOf<String, Any>()
-        if (name.isNotBlank()) updates["name"] = name
-        if (address.isNotBlank()) updates["address"] = address
-        if (updates.isNotEmpty()) {
-            database.collection("users").document("current_user").update(updates)
-        }
+    fun setOnlineStatus(online: Boolean) {
+        _isOnline.value = online
     }
 
-    fun setUserProfile(name: String, address: String, balance: Long, role: String, email: String, phone: String) {
-        val database = db
-        if (database == null) {
-            _userName.value = name
-            _userAddress.value = address
-            _userBalance.value = balance
-            _userRole.value = role
-            return
-        }
-        val profile = mapOf(
-            "name" to name,
-            "address" to address,
-            "balance" to balance,
-            "role" to role,
-            "email" to email,
-            "phone" to phone
-        )
-        database.collection("users").document("current_user").set(profile)
-    }
-
-    fun topUpBalance(amount: Long) {
-        val database = db
-        if (database == null) {
-            _userBalance.value += amount
-            return
-        }
-        database.collection("users").document("current_user")
-            .update("balance", FieldValue.increment(amount))
-    }
-
-    fun setSearchQuery(query: String) {
-        _searchQuery.value = query
-    }
-
-    fun setHomeCategory(category: GoatCategory?) {
-        _selectedHomeCategory.value = if (_selectedHomeCategory.value == category) null else category
-    }
-
-    fun setCatalogCategory(category: GoatCategory?) {
-        _selectedCatalogCategory.value = if (_selectedCatalogCategory.value == category) null else category
+    fun toggleTheme() {
+        _isDarkTheme.value = !_isDarkTheme.value
     }
 
     fun setCatalogSort(sort: CatalogSort) {
@@ -312,538 +703,77 @@ class AgroGoatViewModel : ViewModel() {
         _showFavoritesOnly.value = !_showFavoritesOnly.value
     }
 
+    fun selectOrderForTracking(order: OrderItem) {
+        _selectedOrderForTracking.value = order
+        setTab(AppTab.LACAK_PESANAN)
+    }
+
     fun toggleFavorite(goatId: String) {
         val goat = _goats.value.find { it.id == goatId } ?: return
-        val database = db
-        if (database == null) {
-            _goats.value = _goats.value.map {
-                if (it.id == goatId) it.copy(isFavorite = !it.isFavorite) else it
-            }
-            return
-        }
-        database.collection("goats").document(goatId).update("isFavorite", !goat.isFavorite)
-    }
-
-    fun addGoatItem(goat: GoatItem) {
-        val database = db
-        if (database == null) {
-            _goats.value = _goats.value + goat
-            return
-        }
-        database.collection("goats").document(goat.id).set(goat.toMap())
-    }
-
-    fun updateGoatItem(goat: GoatItem) {
-        val database = db
-        if (database == null) {
-            _goats.value = _goats.value.map { if (it.id == goat.id) goat else it }
-            return
-        }
-        database.collection("goats").document(goat.id).set(goat.toMap())
-    }
-
-    fun deleteGoatItem(goatId: String) {
-        val database = db
-        if (database == null) {
-            _goats.value = _goats.value.filter { it.id != goatId }
-            return
-        }
-        database.collection("goats").document(goatId).delete()
+        db.collection("goats").document(goatId).update("isFavorite", !goat.isFavorite)
     }
 
     fun createOrder(goat: GoatItem, targetWeight: Int) {
+        val uid = auth.currentUser?.uid ?: return
         val dateStr = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")).format(Date())
         
-        val baseWeight = goat.weight
-        val basePrice = goat.price
-        val pricePerKg = basePrice / baseWeight
-        val finalPrice = basePrice + (targetWeight - baseWeight) * pricePerKg
+        val pricePerKg = goat.price / goat.weight
+        val finalPrice = goat.price + (targetWeight - goat.weight) * pricePerKg
 
         val newOrder = OrderItem(
             goat = goat,
             selectedWeight = targetWeight,
             totalPrice = finalPrice,
             orderDate = dateStr,
-            status = OrderStatus.PENDING_PAYMENT
+            status = OrderStatus.PENDING_PAYMENT,
+            buyerUid = uid
         )
 
-        val database = db
-        if (database == null) {
-            _orders.value = listOf(newOrder) + _orders.value
-            val newNotif = NotificationItem(
-                title = "Pesanan Dibuat",
-                message = "Pesanan ${goat.name} menunggu pembayaran transfer bank.",
-                type = NotificationType.ORDER_STATUS,
-                timestamp = "Baru saja"
-            )
-            _notifications.value = listOf(newNotif) + _notifications.value
-            openPayment(newOrder)
-            return
-        }
-
-        database.collection("orders").document(newOrder.id).set(newOrder.toMap())
+        db.collection("orders").document(newOrder.id).set(newOrder.toMap())
         
         val newNotif = NotificationItem(
             title = "Pesanan Dibuat",
-            message = "Pesanan ${goat.name} menunggu pembayaran transfer bank.",
+            message = "Pesanan ${goat.name} menunggu pembayaran.",
             type = NotificationType.ORDER_STATUS,
-            timestamp = "Baru saja"
+            timestamp = "Baru saja",
+            userId = uid
         )
-        database.collection("notifications").document(newNotif.id).set(newNotif.toMap())
-        
-        openPayment(newOrder)
+        db.collection("notifications").document(newNotif.id).set(newNotif.toMap())
     }
 
-    fun processBankTransferPayment(orderId: String) {
-        val database = db
-        if (database == null) {
-            _orders.value = _orders.value.map { ord ->
-                if (ord.id == orderId && ord.status == OrderStatus.PENDING_PAYMENT) {
-                    ord.copy(status = OrderStatus.PACKING)
-                } else {
-                    ord
-                }
-            }
-            val notif = NotificationItem(
-                title = "Bukti Terkirim ✅",
-                message = "Bukti transfer telah diterima admin. Pesanan Anda sedang diverifikasi.",
-                type = NotificationType.ORDER_STATUS,
-                timestamp = "Baru saja"
-            )
-            _notifications.value = listOf(notif) + _notifications.value
-            setTab(AppTab.PESANAN)
-            viewModelScope.launch {
-                delay(8000)
-                _orders.value = _orders.value.map { ord ->
-                    if (ord.id == orderId && ord.status == OrderStatus.PACKING) {
-                        ord.copy(status = OrderStatus.SHIPPING)
-                    } else {
-                        ord
-                    }
-                }
-            }
-            return
-        }
-
-        database.collection("orders").document(orderId).update("status", OrderStatus.PACKING.name)
-
-        val notif = NotificationItem(
-            title = "Bukti Terkirim ✅",
-            message = "Bukti transfer telah diterima admin. Pesanan Anda sedang diverifikasi.",
-            type = NotificationType.ORDER_STATUS,
-            timestamp = "Baru saja"
-        )
-        database.collection("notifications").document(notif.id).set(notif.toMap())
-
-        setTab(AppTab.PESANAN)
-        
-        viewModelScope.launch {
-            delay(8000)
-            database.collection("orders").document(orderId).update("status", OrderStatus.SHIPPING.name)
-        }
+    private fun clearListeners() {
+        updateUserPresence(false)
+        profileListener?.remove()
+        goatsListener?.remove()
+        myGoatsListener?.remove()
+        ordersListener?.remove()
+        messagesListener?.remove()
+        notificationsListener?.remove()
+        chatRoomsListener?.remove()
+        usersProfilesListener?.remove()
+        activePartnerPresenceListener?.remove()
     }
 
-    fun processOrderPayment(orderId: String) {
-        processBankTransferPayment(orderId)
-    }
-
-    fun sendMessage(content: String) {
-        if (content.isBlank()) return
-
-        val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        val messageId = "MSG_${System.currentTimeMillis()}"
-        val userMsg = MessageItem(
-            id = messageId,
-            content = content,
-            sender = MessageSender.USER,
-            timestamp = timeStr
-        )
-
-        val database = db
-        if (database == null) {
-            _messages.value = _messages.value + userMsg
-            viewModelScope.launch {
-                delay(1200)
-                val query = content.lowercase()
-                val (replyText, sender) = when {
-                    query.contains("bukti_transfer") || query.contains("sudah transfer") -> {
-                        Pair(
-                            "Terima kasih mas! Bukti transfer sudah kami terima. Pesanan mas sedang kami verifikasi dan akan segera masuk proses pengemasan. Tunggu update selanjutnya ya! 🙏",
-                            MessageSender.SYSTEM
-                        )
-                    }
-                    query.contains("ready") || query.contains("ada") -> {
-                        Pair(
-                            "Halo mas! Semua kambing yang ada di katalog berstatus ready dan sehat walafiat. Bisa langsung dicek detailnya di tab katalog ya.",
-                            MessageSender.BREEDER_ETAWA
-                        )
-                    }
-                    else -> {
-                        Pair(
-                            "Baik mas, tim kami akan segera merespon pesan Anda secepatnya. 😊",
-                            MessageSender.BREEDER_POTONG
-                        )
-                    }
-                }
-                val replyMsg = MessageItem(
-                    id = "MSG_${System.currentTimeMillis()}",
-                    content = replyText,
-                    sender = sender,
-                    timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-                )
-                _messages.value = _messages.value + replyMsg
-            }
-            return
-        }
-
-        database.collection("messages").document(userMsg.id).set(userMsg.toMap())
-
-        viewModelScope.launch {
-            delay(1200)
-
-            val query = content.lowercase()
-            val (replyText, sender) = when {
-                query.contains("bukti_transfer") || query.contains("sudah transfer") -> {
-                    Pair(
-                        "Terima kasih mas! Bukti transfer sudah kami terima. Pesanan mas sedang kami verifikasi dan akan segera masuk proses pengemasan. Tunggu update selanjutnya ya! 🙏",
-                        MessageSender.SYSTEM
-                    )
-                }
-                query.contains("ready") || query.contains("ada") -> {
-                    Pair(
-                        "Halo mas! Semua kambing yang ada di katalog berstatus ready dan sehat walafiat. Bisa langsung dicek detailnya di tab katalog ya.",
-                        MessageSender.BREEDER_ETAWA
-                    )
-                }
-                else -> {
-                    Pair(
-                        "Baik mas, tim kami akan segera merespon pesan Anda secepatnya. 😊",
-                        MessageSender.BREEDER_POTONG
-                    )
-                }
-            }
-
-            val replyMsg = MessageItem(
-                id = "MSG_${System.currentTimeMillis()}",
-                content = replyText,
-                sender = sender,
-                timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-            )
-            database.collection("messages").document(replyMsg.id).set(replyMsg.toMap())
-        }
-    }
-
-    private fun seedDefaultGoats() {
-        val database = db ?: return
-        val defaultGoats = listOf(
-            GoatItem(
-                name = "Kambing Etawa",
-                category = GoatCategory.ETAWA,
-                gender = "Betina",
-                weight = 45,
-                age = 1.5,
-                price = 3500000,
-                location = "Bengkalis",
-                description = "Kambing Etawa betina berkualitas tinggi, sangat bagus untuk indukan perah maupun pembibitan lanjutan."
-            ),
-            GoatItem(
-                name = "Kambing PE",
-                category = GoatCategory.ETAWA,
-                gender = "Betina",
-                weight = 45,
-                age = 2.0,
-                price = 4000000,
-                location = "Bengkalis",
-                description = "Kambing Peranakan Etawa betina unggulan, sehat dan siap dikawinkan."
-            ),
-            GoatItem(
-                name = "Kambing Etawa",
-                category = GoatCategory.ETAWA,
-                gender = "Jantan",
-                weight = 55,
-                age = 1.5,
-                price = 5500000,
-                location = "Bengkalis",
-                description = "Kambing Etawa unggulan dengan postur tubuh besar, tegap, telinga melipat dengan baik, dan bulu yang subur. Sangat cocok sebagai hewan indukan pejantan tangguh maupun untuk keperluan kontes.",
-                isNew = true
-            ),
-            GoatItem(
-                name = "Kambing PE",
-                category = GoatCategory.ETAWA,
-                gender = "Jantan",
-                weight = 40,
-                age = 2.0,
-                price = 1550000,
-                location = "Bengkalis",
-                description = "Kambing Peranakan Etawa (PE) lokal yang memiliki daya tahan tubuh tinggi terhadap iklim tropis. Makannya sangat lahap dan rajin, menjadikannya pilihan investasi peternakan mandiri yang hemat biaya.",
-                isFavorite = true
-            ),
-            GoatItem(
-                name = "Kambing Boer Karkas",
-                category = GoatCategory.POTONG,
-                gender = "Jantan",
-                weight = 68,
-                age = 1.2,
-                price = 4800000,
-                location = "Bandar Laksamana",
-                description = "Kambing Boer asli keturunan pedaging tinggi karkas. Otot tebal di pundak dan kaki, daging empuk rendah kolesterol. Sempurna untuk keperluan pesta keagamaan, aqiqah, maupun qurban.",
-                isNew = true
-            ),
-            GoatItem(
-                name = "Kambing Kacang Super",
-                category = GoatCategory.POTONG,
-                gender = "Jantan",
-                weight = 32,
-                age = 1.0,
-                price = 1950000,
-                location = "Bengkalis",
-                description = "Kambing Kacang lokal lincah, aktif, dipelihara dengan metode rumping rumput hijauan alam liar. Kualitas daging sangat padat dan gurih, sangat digemari restoran kuliner sate."
-            ),
-            GoatItem(
-                name = "Saanen Perah Unggul",
-                category = GoatCategory.PERAH,
-                gender = "Betina",
-                weight = 45,
-                age = 1.8,
-                price = 6200000,
-                location = "Bukit Batu",
-                description = "Kambing impor Saanen murni putih mulus, berkemampuan memproduksi susu murni hingga 2,5 liter per hari. Sangat jinak, ramah, dan dipelihara dalam sanitasi kandang modern yang steril.",
-                isNew = true
-            ),
-            GoatItem(
-                name = "Anglo Nubian Pedigree",
-                category = GoatCategory.PERAH,
-                gender = "Betina",
-                weight = 50,
-                age = 2.1,
-                price = 7800000,
-                location = "Bengkalis",
-                description = "Kambing Anglo Nubian ras premium. Struktur glandula mamae sangat sempurna, menghasilkan produksi susu gurih dengan kadar lemak butterfat tinggi yang sangat cocok diproses menjadi keju premium."
-            )
-        )
-        for (goat in defaultGoats) {
-            database.collection("goats").document(goat.id).set(goat.toMap())
-        }
-    }
-
-    private fun seedDefaultMessages() {
-        val database = db ?: return
-        val defaultMessages = listOf(
-            MessageItem(
-                id = "MSG_101",
-                content = "Hari ini",
-                sender = MessageSender.SYSTEM,
-                timestamp = ""
-            ),
-            MessageItem(
-                id = "MSG_102",
-                content = "Assalamualaikum, Pak Budi. Stok Kambing Etawa tersedia?",
-                sender = MessageSender.BREEDER_ETAWA,
-                timestamp = "09:15"
-            ),
-            MessageItem(
-                id = "MSG_103",
-                content = "Waalaikumussalam! Alhamdulillah tersedia, ada 5 ekor Etawa jantan.",
-                sender = MessageSender.USER,
-                timestamp = "09:17"
-            ),
-            MessageItem(
-                id = "MSG_104",
-                content = "Berapa harga per ekornya, Pak?",
-                sender = MessageSender.BREEDER_ETAWA,
-                timestamp = "09:18"
-            ),
-            MessageItem(
-                id = "MSG_105",
-                content = "[PRODUCT_CARD]Harga Rp 5,5 juta/ekor. Bisa nego",
-                sender = MessageSender.USER,
-                timestamp = "09:20"
-            ),
-            MessageItem(
-                id = "MSG_106",
-                content = "Kalau ambil 3 ekor bisa Rp 4,8 juta per ekor?",
-                sender = MessageSender.BREEDER_ETAWA,
-                timestamp = "09:22"
-            ),
-            MessageItem(
-                id = "MSG_107",
-                content = "Boleh, saya kirimkan detailnya",
-                sender = MessageSender.USER,
-                timestamp = "09:23"
-            ),
-            MessageItem(
-                id = "MSG_108",
-                content = "...",
-                sender = MessageSender.BREEDER_ETAWA,
-                timestamp = "09:24"
-            )
-        )
-        for (msg in defaultMessages) {
-            database.collection("messages").document(msg.id).set(msg.toMap())
-        }
-    }
-
-    private fun seedDefaultOrders() {
-        val database = db ?: return
-        val goatEtawa1 = GoatItem(
-            name = "Kambing Etawa",
-            category = GoatCategory.ETAWA,
-            gender = "Betina",
-            weight = 45,
-            age = 1.5,
-            price = 4800000,
-            location = "Bengkalis",
-            description = ""
-        )
-
-        val goatPE = GoatItem(
-            name = "Kambing PE",
-            category = GoatCategory.ETAWA,
-            gender = "Betina",
-            weight = 45,
-            age = 1.5,
-            price = 4800000,
-            location = "Bengkalis",
-            description = ""
-        )
-
-        val goatEtawa2 = GoatItem(
-            name = "Kambing Etawa",
-            category = GoatCategory.ETAWA,
-            gender = "Betina",
-            weight = 45,
-            age = 1.0,
-            price = 4800000,
-            location = "Bengkalis",
-            description = ""
-        )
-
-        val defaultOrders = listOf(
-            OrderItem(
-                id = "AG-200626-001",
-                goat = goatEtawa1,
-                selectedWeight = 45,
-                totalPrice = 4800000,
-                status = OrderStatus.SHIPPING,
-                orderDate = "20 Jun 2026"
-            ),
-            OrderItem(
-                id = "AG-180626-002",
-                goat = goatPE,
-                selectedWeight = 45,
-                totalPrice = 4800000,
-                status = OrderStatus.SHIPPING,
-                orderDate = "18 Jun 2026"
-            ),
-            OrderItem(
-                id = "AG-150626-003",
-                goat = goatEtawa2,
-                selectedWeight = 45,
-                totalPrice = 4800000,
-                status = OrderStatus.COMPLETED,
-                orderDate = "15 Jun 2024"
-            ),
-            OrderItem(
-                id = "AG-100626-004",
-                goat = goatEtawa2,
-                selectedWeight = 45,
-                totalPrice = 4800000,
-                status = OrderStatus.COMPLETED,
-                orderDate = "10 Jun 2026"
-            )
-        )
-        for (order in defaultOrders) {
-            database.collection("orders").document(order.id).set(order.toMap())
-        }
-    }
-
-    private fun seedDefaultNotifications() {
-        val database = db ?: return
-        val defaultNotifications = listOf(
-            NotificationItem(
-                id = "NT_101",
-                title = "Pesanan Dikirim 🚚",
-                message = "Pesanan AG-2024-0870 sedang dalam perjalanan ke lokasi Anda.",
-                type = NotificationType.ORDER_STATUS,
-                timestamp = "2 jam yang lalu",
-                isRead = false
-            ),
-            NotificationItem(
-                id = "NT_102",
-                title = "Promo Spesial Hari Raya! 🎉",
-                message = "Dapatkan diskon hingga 20% untuk pembelian Kambing Potong khusus minggu ini.",
-                type = NotificationType.PROMO,
-                timestamp = "5 jam yang lalu",
-                isRead = false
-            ),
-            NotificationItem(
-                id = "NT_103",
-                title = "Pembayaran Berhasil ✅",
-                message = "Pembayaran untuk pesanan AG-2024-0871 telah kami terima. Pesanan sedang diproses.",
-                type = NotificationType.ORDER_STATUS,
-                timestamp = "Kemarin",
-                isRead = true
-            ),
-            NotificationItem(
-                id = "NT_104",
-                title = "Selamat Datang di Agro Goat!",
-                message = "Temukan berbagai jenis kambing berkualitas dengan harga terbaik langsung dari peternak.",
-                type = NotificationType.SYSTEM,
-                timestamp = "2 hari yang lalu",
-                isRead = true
-            )
-        )
-        for (notif in defaultNotifications) {
-            database.collection("notifications").document(notif.id).set(notif.toMap())
-        }
-    }
-
-    private fun seedDefaultUsers() {
-        val database = db ?: return
-        val defaultProfiles = listOf(
-            mapOf(
-                "name" to "Akun Ganda",
-                "address" to "Bengkalis, Riau",
-                "balance" to 15000000L,
-                "role" to "Pedagang",
-                "roles" to listOf("Pedagang", "Penjual"),
-                "email" to "multi@agrogoat.com",
-                "phone" to "08123456789",
-                "password" to "password123"
-            ),
-            mapOf(
-                "name" to "Pak Pedagang",
-                "address" to "Bengkalis, Riau",
-                "balance" to 12500000L,
-                "role" to "Pedagang",
-                "roles" to listOf("Pedagang"),
-                "email" to "pedagang@agrogoat.com",
-                "phone" to "08123456789",
-                "password" to "password123"
-            ),
-            mapOf(
-                "name" to "Pak Peternak",
-                "address" to "Bengkalis, Riau",
-                "balance" to 0L,
-                "role" to "Penjual",
-                "roles" to listOf("Penjual"),
-                "email" to "penjual@agrogoat.com",
-                "phone" to "08123456789",
-                "password" to "password123"
-            )
-        )
-        for (profile in defaultProfiles) {
-            val email = profile["email"] as String
-            database.collection("users_profiles").document(email).set(profile)
-        }
+    private fun resetUserData() {
+        _userName.value = ""
+        _userAddress.value = ""
+        _userBalance.value = 0L
+        _userEmail.value = ""
+        _userPhone.value = ""
+        _myGoats.value = emptyList()
+        _orders.value = emptyList()
+        _messages.value = emptyList()
+        _notifications.value = emptyList()
+        _chatRooms.value = emptyList()
+        _usersProfiles.value = emptyMap()
+        _chatScreenState.value = ChatScreenState.LIST
+        _selectedChatRoom.value = null
+        _activeChatRoomId.value = null
     }
 
     override fun onCleared() {
         super.onCleared()
-        goatsListener?.remove()
-        ordersListener?.remove()
-        messagesListener?.remove()
-        notificationsListener?.remove()
-        profileListener?.remove()
+        auth.removeAuthStateListener(authStateListener)
+        clearListeners()
     }
 }

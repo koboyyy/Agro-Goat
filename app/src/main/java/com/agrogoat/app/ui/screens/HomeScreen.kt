@@ -333,11 +333,11 @@ fun HomeScreen(
                     },
 
                     onChat = {
+                        // Ambil email penjual dari data kambing (gunakan email admin sebagai fallback jika kosong)
+                        val emailTujuan = it.sellerEmail ?: "admin@agrogoat.com"
 
-                        viewModel.setTab(
-                            AppTab.CHAT
-                        )
-
+                        // Beritahu ViewModel untuk memulai chat dengan email tersebut
+                        viewModel.startChatWith(emailTujuan)
                     },
 
                     onOrder = {

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agrogoat.app.data.GoatCategory
 import com.agrogoat.app.data.GoatItem
+import com.agrogoat.app.data.ChatRoom
 import com.agrogoat.app.ui.components.GoatLogo
 import com.agrogoat.app.ui.components.formatRupiah
 import com.agrogoat.app.ui.components.GoatImage
@@ -48,6 +49,8 @@ enum class AdminTab {
     HOME,
     DATA,
     JUAL,
+    LAPORAN,
+    PESAN,
     PROFIL
 }
 
@@ -63,6 +66,7 @@ fun AdminDashboardScreen(
     // Admin state
     var selectedGoatForDetail by remember { mutableStateOf<GoatItem?>(null) }
     var selectedGoatForEdit by remember { mutableStateOf<GoatItem?>(null) }
+    val currentUserEmail by viewModel.userEmail.collectAsState()
     
     // Jual/Add screen fields
     var nameInput by remember { mutableStateOf("") }
@@ -78,7 +82,11 @@ fun AdminDashboardScreen(
     var showSuccessSheet by remember { mutableStateOf(false) }
     var lastAddedGoat by remember { mutableStateOf<GoatItem?>(null) }
 
-    val hasBackAction = selectedGoatForDetail != null || selectedGoatForEdit != null || currentTab != AdminTab.HOME
+    // Chat detail navigation state
+    var selectedChatRoomForAdmin by remember { mutableStateOf<ChatRoom?>(null) }
+
+    val hasBackAction = selectedGoatForDetail != null || selectedGoatForEdit != null || 
+            selectedChatRoomForAdmin != null || currentTab != AdminTab.HOME
     if (hasBackAction) {
         androidx.activity.compose.BackHandler {
             if (selectedGoatForEdit != null) {
@@ -88,6 +96,9 @@ fun AdminDashboardScreen(
             } else if (selectedGoatForDetail != null) {
                 // If viewing details, go back to home list
                 selectedGoatForDetail = null
+            } else if (selectedChatRoomForAdmin != null) {
+                selectedChatRoomForAdmin = null
+                viewModel.goBackToChatList()
             } else {
                 // If in another tab, go back to HOME tab
                 currentTab = AdminTab.HOME
@@ -135,9 +146,21 @@ fun AdminDashboardScreen(
                             selectedGoatForEdit = null
                         }
                     )
+                } else if (selectedChatRoomForAdmin != null) {
+                    AdminChatDetailScreen(
+                        chatRoom = selectedChatRoomForAdmin!!,
+                        viewModel = viewModel,
+                        onBack = {
+                            selectedChatRoomForAdmin = null
+                            viewModel.goBackToChatList()
+                        }
+                    )
                 } else {
                     when (currentTab) {
-                        AdminTab.HOME -> AdminHomeTab(viewModel, onNavigateToData = { currentTab = AdminTab.DATA })
+                        AdminTab.HOME -> AdminHomeTab(
+                            viewModel = viewModel,
+                            onNavigateToData = { currentTab = AdminTab.DATA }
+                        )
                         AdminTab.DATA -> AdminDataTab(
                             viewModel = viewModel,
                             onGoatClick = { selectedGoatForDetail = it },
@@ -146,18 +169,31 @@ fun AdminDashboardScreen(
                         )
                         AdminTab.JUAL -> AdminJualTab(
                             onSave = { newGoat ->
-                                viewModel.addGoatItem(newGoat)
+                                val goatWithOwner = newGoat.copy(sellerEmail = currentUserEmail)
+                                viewModel.addGoatItem(goatWithOwner)
                                 triggerSuccess(newGoat)
                             },
                             onCancel = { currentTab = AdminTab.HOME }
                         )
-                        AdminTab.PROFIL -> AdminProfilTab(viewModel, onLogout)
+                        AdminTab.LAPORAN -> AdminSalesReportScreen(
+                            onBack = { currentTab = AdminTab.HOME }
+                        )
+                        AdminTab.PESAN -> AdminChatDashboardScreen(
+                            viewModel = viewModel,
+                            onChatClick = { selectedChatRoomForAdmin = it },
+                            onBack = { currentTab = AdminTab.HOME }
+                        )
+                        AdminTab.PROFIL -> AdminProfilScreen(
+                            viewModel = viewModel,
+                            onBack = { currentTab = AdminTab.HOME },
+                            onLogout = onLogout
+                        )
                     }
                 }
             }
 
             // Bottom Navigation Bar
-            if (selectedGoatForDetail == null && selectedGoatForEdit == null) {
+            if (selectedGoatForDetail == null && selectedGoatForEdit == null && selectedChatRoomForAdmin == null) {
                 AdminBottomNavigation(
                     activeTab = currentTab,
                     onTabSelected = { currentTab = it }
@@ -286,9 +322,12 @@ fun AdminDashboardScreen(
 }
 
 @Composable
-fun AdminHomeTab(viewModel: AgroGoatViewModel, onNavigateToData: () -> Unit) {
+fun AdminHomeTab(
+    viewModel: AgroGoatViewModel,
+    onNavigateToData: () -> Unit
+) {
     val userName by viewModel.userName.collectAsState()
-    val goats by viewModel.goats.collectAsState()
+    val goats by viewModel.myGoats.collectAsState()
     val orders by viewModel.orders.collectAsState()
 
     Column(
@@ -504,7 +543,7 @@ fun AdminDataTab(
     onEditClick: (GoatItem) -> Unit,
     onAddClick: () -> Unit
 ) {
-    val goats by viewModel.goats.collectAsState()
+    val goats by viewModel.myGoats.collectAsState()
     
     // Filters
     var genderFilter by remember { mutableStateOf("Semua") }
@@ -1065,7 +1104,7 @@ fun AdminJualTab(
                                     location = location,
                                     description = desc,
                                     isNew = true,
-                                    imageUri = finalImageUri
+                                    imageUri = finalImageUri,
                                 )
                                 onSave(newGoat)
                                 // Clear form
@@ -1092,94 +1131,7 @@ fun AdminJualTab(
     }
 }
 
-@Composable
-fun AdminProfilTab(viewModel: AgroGoatViewModel, onLogout: () -> Unit) {
-    val userName by viewModel.userName.collectAsState()
-    val userAddress by viewModel.userAddress.collectAsState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF1F6E35))
-                .statusBarsPadding()
-                .padding(vertical = 32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF1F6E35),
-                        modifier = Modifier.size(72.dp)
-                    )
-                }
-                Text(userName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Text("Role: Penjual (Admin)", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text("Pengaturan Akun", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Gray)
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Nama", color = Color.Gray)
-                        Text(userName, fontWeight = FontWeight.SemiBold)
-                    }
-                    Divider(color = Color(0xFFE2E8F0))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Lokasi Peternakan", color = Color.Gray)
-                        Text(userAddress, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = onLogout,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Keluar dari Akun", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
+// AdminProfilTab has been replaced by the modular AdminProfilScreen Composable
 
 @Composable
 fun AdminGoatDetailView(
@@ -1556,126 +1508,51 @@ fun AdminBottomNavigation(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(76.dp)
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
             val activeColor = Color(0xFF1F6E35)
             val inactiveColor = Color.Gray.copy(alpha = 0.6f)
 
-            // Tab 1: Home
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = if (activeTab == AdminTab.HOME) activeColor.copy(alpha = 0.1f) else Color.Transparent,
-                onClick = { onTabSelected(AdminTab.HOME) }
-            ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+            listOf(
+                Triple(AdminTab.HOME, Icons.Default.Home, "Home"),
+                Triple(AdminTab.DATA, Icons.Default.Pets, "Data"),
+                Triple(AdminTab.JUAL, Icons.Default.LocalOffer, "Jual"),
+                Triple(AdminTab.LAPORAN, Icons.Default.Assessment, "Laporan"),
+                Triple(AdminTab.PESAN, Icons.Default.Chat, "Pesan"),
+                Triple(AdminTab.PROFIL, Icons.Default.Person, "Profil")
+            ).forEach { (tab, icon, label) ->
+                val isSelected = activeTab == tab
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 2.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected) activeColor.copy(alpha = 0.1f) else Color.Transparent,
+                    onClick = { onTabSelected(tab) }
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = "Home",
-                        tint = if (activeTab == AdminTab.HOME) activeColor else inactiveColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = "Home",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (activeTab == AdminTab.HOME) activeColor else inactiveColor
-                    )
-                }
-            }
-
-            // Tab 2: Data
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = if (activeTab == AdminTab.DATA) activeColor.copy(alpha = 0.1f) else Color.Transparent,
-                onClick = { onTabSelected(AdminTab.DATA) }
-            ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Pets, // Goat representation
-                        contentDescription = "Data",
-                        tint = if (activeTab == AdminTab.DATA) activeColor else inactiveColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = "Data",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (activeTab == AdminTab.DATA) activeColor else inactiveColor
-                    )
-                }
-            }
-
-            // Tab 3: Jual
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = if (activeTab == AdminTab.JUAL) activeColor.copy(alpha = 0.1f) else Color.Transparent,
-                onClick = { onTabSelected(AdminTab.JUAL) }
-            ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocalOffer, // Money/tag icon
-                        contentDescription = "Jual",
-                        tint = if (activeTab == AdminTab.JUAL) activeColor else inactiveColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = "Jual",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (activeTab == AdminTab.JUAL) activeColor else inactiveColor
-                    )
-                }
-            }
-
-            // Tab 4: Profil
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = if (activeTab == AdminTab.PROFIL) activeColor.copy(alpha = 0.1f) else Color.Transparent,
-                onClick = { onTabSelected(AdminTab.PROFIL) }
-            ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profil",
-                        tint = if (activeTab == AdminTab.PROFIL) activeColor else inactiveColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = "Profil",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (activeTab == AdminTab.PROFIL) activeColor else inactiveColor
-                    )
+                    Column(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = if (isSelected) activeColor else inactiveColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = label,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) activeColor else inactiveColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }

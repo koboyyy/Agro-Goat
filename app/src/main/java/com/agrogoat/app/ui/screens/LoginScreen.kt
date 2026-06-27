@@ -1410,8 +1410,11 @@ fun LoginScreen(
                                                 )
                                                 // Save to users_profiles
                                                 database.collection("users_profiles").document(emailInput).set(profile)
-                                                // Also set as current user
-                                                database.collection("users").document("current_user").set(profile)
+                                                // Also set as user UID
+                                                val uid = regTask.result?.user?.uid ?: ""
+                                                if (uid.isNotEmpty()) {
+                                                    database.collection("users").document(uid).set(profile + mapOf("uid" to uid))
+                                                }
                                                 
                                                 showSuccessBanner = true
                                                 delay(1500)

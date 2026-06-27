@@ -8,11 +8,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -34,7 +32,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,21 +40,7 @@ import com.agrogoat.app.data.*
 import com.agrogoat.app.ui.components.GoatSilhouette
 import com.agrogoat.app.viewmodel.AgroGoatViewModel
 import com.agrogoat.app.viewmodel.AppTab
-import kotlinx.coroutines.launch
-
-enum class ChatScreenState {
-    LIST,
-    DETAIL
-}
-
-data class ChatRoom(
-    val id: String,
-    val name: String,
-    val lastMessage: String,
-    val initials: String,
-    val hasCheckmark: Boolean,
-    val hasBorder: Boolean = false
-)
+import com.agrogoat.app.viewmodel.ChatScreenState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,29 +48,13 @@ fun ChatScreen(
     viewModel: AgroGoatViewModel,
     modifier: Modifier = Modifier
 ) {
-    var currentScreenState by remember { mutableStateOf(ChatScreenState.LIST) }
-    var selectedChatRoom by remember { mutableStateOf<ChatRoom?>(null) }
-    
-    val chatRooms = listOf(
-        ChatRoom("1", "Wahyu Farm", "Boleh, saya kirimkan detailnya", "WF", hasCheckmark = true),
-        ChatRoom("2", "Peternak Jaya Farm", "Oke", "PJ", hasCheckmark = false),
-        ChatRoom("3", "Azrul Farm", "Oke", "AF", hasCheckmark = true),
-        ChatRoom("4", "Riski Farm", "Oke", "RF", hasCheckmark = false, hasBorder = true)
-    )
-
-    LaunchedEffect(currentScreenState) {
-        viewModel.setHideBottomBar(currentScreenState == ChatScreenState.DETAIL)
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.setHideBottomBar(false)
-        }
-    }
+    val currentScreenState by viewModel.chatScreenState.collectAsState()
+    val selectedChatRoom by viewModel.selectedChatRoom.collectAsState()
+    val chatRooms by viewModel.chatInboxRooms.collectAsState()
 
     if (currentScreenState == ChatScreenState.DETAIL) {
         androidx.activity.compose.BackHandler {
-            currentScreenState = ChatScreenState.LIST
+            viewModel.goBackToChatList()
         }
     }
 
@@ -96,8 +63,7 @@ fun ChatScreen(
             ChatListScreen(
                 chatRooms = chatRooms,
                 onRoomClick = { room ->
-                    selectedChatRoom = room
-                    currentScreenState = ChatScreenState.DETAIL
+                    viewModel.selectChatRoom(room)
                 },
                 onBackClick = {
                     viewModel.setTab(AppTab.BERANDA)
@@ -106,15 +72,21 @@ fun ChatScreen(
             )
         }
         ChatScreenState.DETAIL -> {
-            val room = selectedChatRoom ?: chatRooms.first()
-            ChatDetailScreen(
-                chatRoom = room,
-                viewModel = viewModel,
-                onBackClick = {
-                    currentScreenState = ChatScreenState.LIST
-                },
-                modifier = modifier
-            )
+            val room = selectedChatRoom ?: if (chatRooms.isNotEmpty()) chatRooms.first() else null
+            if (room != null) {
+                ChatDetailScreen(
+                    chatRoom = room,
+                    viewModel = viewModel,
+                    onBackClick = {
+                        viewModel.goBackToChatList()
+                    },
+                    modifier = modifier
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Belum ada percakapan")
+                }
+            }
         }
     }
 }
@@ -167,75 +139,96 @@ fun ChatListScreen(
         },
         containerColor = Color.White
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(chatRooms) { room ->
-                val borderStroke = if (room.hasBorder) BorderStroke(2.dp, Color(0xFF2196F3)) else null
-                
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .let { if (borderStroke != null) it.border(borderStroke, RoundedCornerShape(12.dp)) else it }
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF5F5F5))
-                        .clickable { onRoomClick(room) }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+        if (chatRooms.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                    Text("💬", fontSize = 48.sp)
+                    Text(
+                        text = "Belum ada chat masuk.",
+                        color = Color.Gray,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(chatRooms) { room ->
+                    val borderStroke = if (room.hasBorder) BorderStroke(2.dp, Color(0xFF2196F3)) else null
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .let { if (borderStroke != null) it.border(borderStroke, RoundedCornerShape(12.dp)) else it }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF5F5F5))
+                            .clickable { onRoomClick(room) }
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
-                        // Soft purple user avatar
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFE8EAF6)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color(0xFF3F51B5),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.width(14.dp))
-                        
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = room.name,
-                                color = Color.Black,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = room.lastMessage,
-                                color = Color(0xFF757575),
-                                fontSize = 13.sp,
-                                maxLines = 1
-                            )
-                        }
-                        
-                        if (room.hasCheckmark) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "✓✓",
-                                color = Color(0xFF4CAF50),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.align(Alignment.Bottom)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF81C784)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = room.initials,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(14.dp))
+                            
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = room.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color.Black
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = room.lastMessage,
+                                    color = Color.Gray,
+                                    fontSize = 13.sp,
+                                    maxLines = 1
+                                )
+                            }
+                            
+                            if (room.hasCheckmark) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "✓✓",
+                                    color = Color(0xFF4CAF50),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.align(Alignment.Bottom)
+                                )
+                            }
                         }
                     }
                 }
@@ -252,13 +245,14 @@ fun ChatDetailScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val messages by viewModel.messages.collectAsState()
+    val messages by viewModel.activeChatMessages.collectAsState()
     var textInput by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
+    val isPartnerOnline by viewModel.activePartnerOnline.collectAsState()
+    val partnerLastSeen by viewModel.activePartnerLastSeen.collectAsState()
+    val currentUserEmail by viewModel.userEmail.collectAsState()
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    // Scroll to bottom when list grows
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
@@ -266,13 +260,13 @@ fun ChatDetailScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(2.dp),
-                color = Color(0xFF2E7D32) // Forest green
+                color = Color(0xFF2E7D32)
             ) {
                 Row(
                     modifier = Modifier
@@ -295,7 +289,6 @@ fun ChatDetailScreen(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // Green initials avatar with status dot
                     Box(modifier = Modifier.size(38.dp)) {
                         Box(
                             modifier = Modifier
@@ -315,7 +308,7 @@ fun ChatDetailScreen(
                             modifier = Modifier
                                 .size(10.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF4CAF50))
+                                .background(if (isPartnerOnline) Color(0xFF4CAF50) else Color.Gray)
                                 .border(1.5.dp, Color.White, CircleShape)
                                 .align(Alignment.BottomEnd)
                         )
@@ -331,7 +324,7 @@ fun ChatDetailScreen(
                             fontSize = 16.sp
                         )
                         Text(
-                            text = "Online",
+                            text = if (isPartnerOnline) "Online" else if (partnerLastSeen.isNotEmpty()) "Terakhir terlihat: $partnerLastSeen" else "Offline",
                             color = Color.White.copy(alpha = 0.85f),
                             fontWeight = FontWeight.Normal,
                             fontSize = 11.sp
@@ -371,7 +364,7 @@ fun ChatDetailScreen(
                 }
             }
         },
-        containerColor = Color(0xFFEDE8E3) // Sandy beige background
+        containerColor = Color(0xFFEDE8E3)
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -388,7 +381,7 @@ fun ChatDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(messages) { msg ->
-                    val isUser = msg.sender == MessageSender.USER
+                    val isMe = msg.senderEmail.equals(currentUserEmail, ignoreCase = true) || msg.senderEmail.isEmpty()
                     val isSystem = msg.sender == MessageSender.SYSTEM
 
                     if (isSystem) {
@@ -412,23 +405,23 @@ fun ChatDetailScreen(
                     } else {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+                            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
                         ) {
                             Column(
                                 modifier = Modifier.widthIn(max = 280.dp),
-                                horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+                                horizontalAlignment = if (isMe) Alignment.End else Alignment.Start
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .clip(
                                             RoundedCornerShape(
-                                                topStart = if (isUser) 14.dp else 2.dp,
-                                                topEnd = if (isUser) 2.dp else 14.dp,
+                                                topStart = if (isMe) 14.dp else 2.dp,
+                                                topEnd = if (isMe) 2.dp else 14.dp,
                                                 bottomStart = 14.dp,
                                                 bottomEnd = 14.dp
                                             )
                                         )
-                                        .background(if (isUser) Color(0xFFD2F4D9) else Color(0xFFFFFFFF))
+                                        .background(if (isMe) Color(0xFFD2F4D9) else Color(0xFFFFFFFF))
                                         .padding(if (msg.content.startsWith("[PRODUCT_CARD]")) 6.dp else 12.dp, 8.dp)
                                 ) {
                                     when {
@@ -455,7 +448,7 @@ fun ChatDetailScreen(
                                     if (msg.timestamp.isNotEmpty()) {
                                         Text(text = msg.timestamp, fontSize = 10.sp, color = Color.Gray)
                                     }
-                                    if (isUser && msg.content != "...") {
+                                    if (isMe && msg.content != "...") {
                                         Text(text = "✓✓", color = Color(0xFF4CAF50), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
@@ -579,7 +572,6 @@ fun ChatInput(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Clean Smiley Face Icon
             Icon(
                 imageVector = Icons.Outlined.SentimentSatisfied,
                 contentDescription = "Emoji",
@@ -612,7 +604,6 @@ fun ChatInput(
                     )
                 }
                 
-                // Clean Paperclip Icon
                 Icon(
                     imageVector = Icons.Outlined.AttachFile,
                     contentDescription = "Lampiran",
@@ -625,7 +616,6 @@ fun ChatInput(
                 
                 Spacer(modifier = Modifier.width(8.dp))
                 
-                // Clean Camera Icon
                 Icon(
                     imageVector = Icons.Outlined.PhotoCamera,
                     contentDescription = "Kamera",
@@ -654,7 +644,6 @@ fun ChatInput(
                         modifier = Modifier.size(18.dp)
                     )
                 } else {
-                    // Clean Microphone Icon
                     Icon(
                         imageVector = Icons.Outlined.Mic,
                         contentDescription = "Suara",

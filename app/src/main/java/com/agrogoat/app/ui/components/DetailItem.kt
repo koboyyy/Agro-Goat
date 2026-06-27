@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun DetailItem(
-    title:String,
-    value:String
+    title: String,
+    value: String?
 ){
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -40,7 +40,7 @@ fun DetailItem(
             Spacer(Modifier.height(3.dp))
 
             Text(
-                text=value,
+                text=value ?: "-",
                 color=Color.Gray,
                 fontSize=13.sp
             )
