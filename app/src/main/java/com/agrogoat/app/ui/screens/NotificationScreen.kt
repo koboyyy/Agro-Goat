@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,7 +51,7 @@ fun NotificationScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.setTab(AppTab.BERANDA) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Kembali")
                     }
                 },
                 actions = {
@@ -72,7 +74,7 @@ fun NotificationScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        Icons.Default.Notifications,
+                        Icons.Outlined.Notifications,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
                         tint = Color.LightGray
@@ -108,9 +110,9 @@ fun NotificationItemRow(
     onClick: () -> Unit
 ) {
     val icon = when (notification.type) {
-        NotificationType.ORDER_STATUS -> Icons.Default.ShoppingCart
-        NotificationType.PROMO -> Icons.Default.Star
-        NotificationType.SYSTEM -> Icons.Default.Notifications
+        NotificationType.ORDER_STATUS -> Icons.Outlined.ShoppingCart
+        NotificationType.PROMO -> Icons.Outlined.Star
+        NotificationType.SYSTEM -> Icons.Outlined.Notifications
     }
 
     val iconBgColor = when (notification.type) {

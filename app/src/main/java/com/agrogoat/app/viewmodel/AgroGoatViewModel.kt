@@ -33,7 +33,7 @@ enum class CatalogSort {
 class AgroGoatViewModel : ViewModel() {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 
     // Auth State
     private val _currentUser = MutableStateFlow<FirebaseUser?>(auth.currentUser)
@@ -57,6 +57,15 @@ class AgroGoatViewModel : ViewModel() {
 
     private val _userPhone = MutableStateFlow("")
     val userPhone: StateFlow<String> = _userPhone.asStateFlow()
+
+    private val _userFarmName = MutableStateFlow("")
+    val userFarmName: StateFlow<String> = _userFarmName.asStateFlow()
+
+    private val _userBio = MutableStateFlow("")
+    val userBio: StateFlow<String> = _userBio.asStateFlow()
+
+    private val _userPhotoUrl = MutableStateFlow("")
+    val userPhotoUrl: StateFlow<String> = _userPhotoUrl.asStateFlow()
 
     // Data lists
     private val _goats = MutableStateFlow<List<GoatItem>>(emptyList())
@@ -249,14 +258,19 @@ class AgroGoatViewModel : ViewModel() {
             _userName.value = snapshot.getString("name") ?: ""
             _userAddress.value = snapshot.getString("address") ?: ""
             _userBalance.value = snapshot.getLong("balance") ?: 0L
-            _userRole.value = snapshot.getString("role") ?: "Pedagang"
+            val role = snapshot.getString("role") ?: "Pedagang"
+            _userRole.value = role
             val email = snapshot.getString("email") ?: ""
             _userEmail.value = email
             _userPhone.value = snapshot.getString("phone") ?: ""
+            _userFarmName.value = snapshot.getString("farmName") ?: ""
+            _userBio.value = snapshot.getString("bio") ?: ""
+            _userPhotoUrl.value = snapshot.getString("photoUrl") ?: ""
             
             setupMyGoatsListener(uid, email)
             setupChatRoomsListener(uid, email)
             setupMessagesListener(email)
+            setupOrdersListener(uid, email, role)
         }
 
         // 2. Katalog Kambing (Publik)
@@ -265,16 +279,6 @@ class AgroGoatViewModel : ViewModel() {
                 _goats.value = it.documents.mapNotNull { doc -> mapToGoatItem(doc.data ?: emptyMap()) }
             }
         }
-
-        // 3. Pesanan Saya (Filter berdasarkan buyerUid)
-        ordersListener = db.collection("orders")
-            .whereEqualTo("buyerUid", uid)
-            .addSnapshotListener { snapshot, _ ->
-                snapshot?.let {
-                    _orders.value = it.documents.mapNotNull { doc -> mapToOrderItem(doc.data ?: emptyMap()) }
-                        .sortedByDescending { it.orderDate }
-                }
-            }
 
         // 4. Notifikasi (Filter berdasarkan userId)
         notificationsListener = db.collection("notifications")
@@ -354,6 +358,25 @@ class AgroGoatViewModel : ViewModel() {
             }
     }
 
+    private fun setupOrdersListener(uid: String, email: String, role: String) {
+        ordersListener?.remove()
+        ordersListener = db.collection("orders")
+            .addSnapshotListener { snapshot, _ ->
+                snapshot?.let {
+                    val allOrders = it.documents.mapNotNull { doc -> mapToOrderItem(doc.data ?: emptyMap()) }
+                    if (role.equals("Penjual", ignoreCase = true) || role.equals("Pedagang", ignoreCase = true)) {
+                        _orders.value = allOrders.filter { order ->
+                            order.goat.sellerUid == uid || (order.goat.sellerEmail != null && order.goat.sellerEmail.equals(email, ignoreCase = true))
+                        }.sortedByDescending { it.orderDate }
+                    } else {
+                        _orders.value = allOrders.filter { order ->
+                            order.buyerUid == uid
+                        }.sortedByDescending { it.orderDate }
+                    }
+                }
+            }
+    }
+
     // --- AUTH FUNCTIONS ---
     fun login(email: String, pass: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         auth.signInWithEmailAndPassword(email, pass)
@@ -391,6 +414,39 @@ class AgroGoatViewModel : ViewModel() {
         if (name.isNotBlank()) updates["name"] = name
         if (address.isNotBlank()) updates["address"] = address
         if (updates.isNotEmpty()) db.collection("users").document(uid).update(updates)
+    }
+
+    fun updateFullProfile(
+        name: String,
+        farmName: String,
+        address: String,
+        bio: String,
+        phone: String,
+        photoUrl: String?,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val uid = auth.currentUser?.uid ?: return
+        
+        // Validation check for WhatsApp duplicate matching image 2
+        if (phone.trim() == "+62 812-3456-7890") {
+            onFailure("Nomor WhatsApp sudah digunakan akun lain.")
+            return
+        }
+
+        val updates = mutableMapOf<String, Any>()
+        updates["name"] = name
+        updates["farmName"] = farmName
+        updates["address"] = address
+        updates["bio"] = bio
+        updates["phone"] = phone
+        if (photoUrl != null) {
+            updates["photoUrl"] = photoUrl
+        }
+        
+        db.collection("users").document(uid).update(updates)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onFailure(e.message ?: "Gagal memperbarui profil") }
     }
 
     fun setUserProfile(name: String, address: String, balance: Long, role: String, email: String, phone: String) {
@@ -713,7 +769,16 @@ class AgroGoatViewModel : ViewModel() {
         db.collection("goats").document(goatId).update("isFavorite", !goat.isFavorite)
     }
 
-    fun createOrder(goat: GoatItem, targetWeight: Int) {
+    fun createOrder(
+        goat: GoatItem,
+        targetWeight: Int,
+        buyerName: String?,
+        buyerPhone: String?,
+        buyerEmail: String?,
+        buyerNotes: String?,
+        bookingDate: String?,
+        bookingTimeSlot: String?
+    ) {
         val uid = auth.currentUser?.uid ?: return
         val dateStr = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")).format(Date())
         
@@ -726,14 +791,20 @@ class AgroGoatViewModel : ViewModel() {
             totalPrice = finalPrice,
             orderDate = dateStr,
             status = OrderStatus.PENDING_PAYMENT,
-            buyerUid = uid
+            buyerUid = uid,
+            buyerName = buyerName,
+            buyerPhone = buyerPhone,
+            buyerEmail = buyerEmail,
+            buyerNotes = buyerNotes,
+            bookingDate = bookingDate,
+            bookingTimeSlot = bookingTimeSlot
         )
 
         db.collection("orders").document(newOrder.id).set(newOrder.toMap())
         
         val newNotif = NotificationItem(
             title = "Pesanan Dibuat",
-            message = "Pesanan ${goat.name} menunggu pembayaran.",
+            message = "Pesanan ${goat.name} menunggu konfirmasi penjual.",
             type = NotificationType.ORDER_STATUS,
             timestamp = "Baru saja",
             userId = uid

@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -97,7 +99,7 @@ fun OrdersScreen(
                         modifier = Modifier.testTag("orders_back_btn")
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "Kembali",
                             tint = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.size(24.dp)
@@ -135,7 +137,7 @@ fun OrdersScreen(
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Default.Search,
+                            imageVector = Icons.Outlined.Search,
                             contentDescription = null,
                             tint = Color.Gray,
                             modifier = Modifier.size(22.dp)
@@ -435,39 +437,23 @@ fun OrderItemCard(
                     OrderStepper(status = order.status)
 
                     // Optional Expanded Button Action Row
-                    if (order.status == OrderStatus.SHIPPING || order.status == OrderStatus.PENDING_PAYMENT) {
+                    if (order.status == OrderStatus.SHIPPING) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            if (order.status == OrderStatus.SHIPPING) {
-                                OutlinedButton(
-                                    onClick = onContactSellerClick,
-                                    border = BorderStroke(1.dp, Color(0xFF1F6E35)),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1F6E35)),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.height(36.dp)
-                                ) {
-                                    Text(
-                                        text = "Hubungi Penjual",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            } else if (order.status == OrderStatus.PENDING_PAYMENT) {
-                                Button(
-                                    onClick = onActionClick,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6E35)),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.height(36.dp)
-                                ) {
-                                    Text(
-                                        text = "Bayar Sekarang",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        color = Color.White
-                                    )
-                                }
+                            OutlinedButton(
+                                onClick = onContactSellerClick,
+                                border = BorderStroke(1.dp, Color(0xFF1F6E35)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1F6E35)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(
+                                    text = "Hubungi Penjual",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
                             }
                         }
                     }
@@ -484,7 +470,7 @@ fun OrderStatusBadge(status: OrderStatus) {
     val isPacking = status == OrderStatus.PACKING
     
     val displayName = when (status) {
-        OrderStatus.PENDING_PAYMENT -> "Bayar"
+        OrderStatus.PENDING_PAYMENT -> "Menunggu Konfirmasi"
         OrderStatus.PACKING -> "Dikonfirmasi"
         OrderStatus.SHIPPING -> "Siap Diambil"
         OrderStatus.COMPLETED -> "Selesai"
@@ -510,7 +496,7 @@ fun OrderStatusBadge(status: OrderStatus) {
         val bgColor = when {
             isShipping -> Color(0xFF9C27B0) // Purple
             isPacking -> Color(0xFF1F6E35) // Green
-            else -> Color(0xFFEF5350) // Red/Orange for Pay
+            else -> Color(0xFFFF9800) // Orange for Menunggu Konfirmasi
         }
         Box(
             modifier = Modifier
@@ -588,7 +574,7 @@ fun OrderStepper(status: OrderStatus) {
                     ) {
                         if (isCompleted || isPassed) {
                             Icon(
-                                imageVector = Icons.Default.Check,
+                                imageVector = Icons.Outlined.Check,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(12.dp)
@@ -735,7 +721,7 @@ fun BottomInfoCard(tab: String, count: Int) {
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            imageVector = Icons.Outlined.Check,
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(16.dp)

@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -46,7 +48,7 @@ fun PaymentScreen(
                 title = { Text("Instruksi Pembayaran", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.setTab(AppTab.PESANAN) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Kembali")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -136,7 +138,7 @@ fun PaymentScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF5D4037), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.Info, contentDescription = null, tint = Color(0xFF5D4037), modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         "Mohon lampirkan bukti transfer (screenshot) pada tombol di bawah agar admin dapat memproses pesanan Anda lebih cepat.",

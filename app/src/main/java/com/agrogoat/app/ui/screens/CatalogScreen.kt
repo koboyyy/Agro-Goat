@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import android.app.DatePickerDialog
 import android.widget.Toast
@@ -97,8 +99,12 @@ fun CatalogScreen(
     var selectedTimeSlot by remember { mutableStateOf("09.00 - 10.00") }
     var bookingCode by remember { mutableStateOf("") }
 
-    LaunchedEffect(currentSubScreen) {
-        viewModel.setHideBottomBar(currentSubScreen != CatalogSubScreen.LIST)
+    val currentTab by viewModel.currentTab.collectAsState()
+
+    LaunchedEffect(currentSubScreen, currentTab) {
+        if (currentTab == AppTab.KATALOG) {
+            viewModel.setHideBottomBar(currentSubScreen != CatalogSubScreen.LIST)
+        }
     }
 
     // Collect list parameters from VM for the list sub-screen
@@ -210,7 +216,7 @@ fun CatalogScreen(
                                         modifier = Modifier.testTag("catalog_back_btn")
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.ArrowBack,
+                                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                                             contentDescription = "Kembali",
                                             tint = MaterialTheme.colorScheme.onBackground,
                                             modifier = Modifier.size(24.dp)
@@ -257,7 +263,7 @@ fun CatalogScreen(
                                             },
                                             leadingIcon = {
                                                 Icon(
-                                                    imageVector = Icons.Default.Search,
+                                                    imageVector = Icons.Outlined.Search,
                                                     contentDescription = null,
                                                     tint = Color.Gray,
                                                     modifier = Modifier.size(22.dp)
@@ -300,7 +306,7 @@ fun CatalogScreen(
                                                 .testTag("catalog_green_filter_btn")
                                         ) {
                                             Icon(
-                                                imageVector = if (showFavsOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                imageVector = if (showFavsOnly) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
                                                 contentDescription = "Saring Favorit",
                                                 tint = Color.White,
                                                 modifier = Modifier.size(22.dp)
@@ -482,7 +488,7 @@ fun CatalogScreen(
                                                         fontSize = 13.sp
                                                     )
                                                     Icon(
-                                                        imageVector = Icons.Default.ArrowDropDown,
+                                                        imageVector = Icons.Outlined.ArrowDropDown,
                                                         contentDescription = null,
                                                         tint = Color(0xFF2E7D32),
                                                         modifier = Modifier.size(18.dp)
@@ -611,11 +617,9 @@ fun CatalogScreen(
                             },
 
                             onChat = {
-
-                                viewModel.setTab(
-                                    AppTab.CHAT
-                                )
-
+                                val targetEmail = if (!goat.sellerEmail.isNullOrBlank()) goat.sellerEmail else "admin@agrogoat.com"
+                                viewModel.startChatWith(targetEmail)
+                                currentSubScreen = CatalogSubScreen.LIST
                             },
 
                             onOrder = {
@@ -696,7 +700,16 @@ fun CatalogScreen(
                             onBack = { currentSubScreen = CatalogSubScreen.BOOKING_STEP2 },
                             onNext = {
                                 // Create order and transition to success
-                                viewModel.createOrder(goat, goat.weight)
+                                viewModel.createOrder(
+                                    goat = goat,
+                                    targetWeight = goat.weight,
+                                    buyerName = buyerName,
+                                    buyerPhone = buyerPhone,
+                                    buyerEmail = buyerEmail,
+                                    buyerNotes = buyerNotes,
+                                    bookingDate = selectedDate,
+                                    bookingTimeSlot = selectedTimeSlot
+                                )
                                 viewModel.setTab(com.agrogoat.app.viewmodel.AppTab.KATALOG)
 
                                 // Generate booking code based on date
@@ -772,7 +785,7 @@ fun BookingStep1View(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Kembali")
                     }
                 }
             )
@@ -944,7 +957,7 @@ fun BookingStep2View(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Kembali")
                     }
                 }
             )
@@ -1169,7 +1182,7 @@ fun BookingStep3View(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Kembali")
                     }
                 }
             )

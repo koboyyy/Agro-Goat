@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -53,7 +55,7 @@ fun AdminSalesReportScreen(
                 ) {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "Kembali",
                             tint = Color.White
                         )
@@ -97,7 +99,7 @@ fun AdminSalesReportScreen(
                                     .background(Color.White),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
+                                    imageVector = Icons.Outlined.CalendarMonth,
                                     contentDescription = "Kalender",
                                     tint = Color(0xFF2E7D32),
                                     modifier = Modifier.size(20.dp)
@@ -112,7 +114,7 @@ fun AdminSalesReportScreen(
                                     .background(Color.White)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.InsertChart,
+                                    imageVector = Icons.Outlined.InsertChart,
                                     contentDescription = "Grafik",
                                     tint = Color(0xFF2E7D32),
                                     modifier = Modifier.size(20.dp)

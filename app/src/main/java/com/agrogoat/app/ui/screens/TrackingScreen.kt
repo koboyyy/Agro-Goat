@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -41,7 +43,7 @@ fun TrackingScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Kembali")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -127,7 +129,7 @@ fun TrackingScreen(
                     verticalAlignment = Alignment.Top
                 ) {
                     Icon(
-                        imageVector = Icons.Default.LocationOn,
+                        imageVector = Icons.Outlined.LocationOn,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
@@ -167,19 +169,19 @@ fun getTrackingSteps(order: OrderItem): List<TrackingStep> {
             steps.add(TrackingStep("Pesanan Sampai", "Kurir telah sampai di lokasi tujuan.", "15 Jun, 13:45", OrderStatus.COMPLETED))
             steps.add(TrackingStep("Dalam Perjalanan", "Pesanan sedang dikirim oleh kurir Agro Goat.", "15 Jun, 09:00", OrderStatus.SHIPPING))
             steps.add(TrackingStep("Sedang Dikemas", "Pihak peternak sedang menyiapkan kambing.", "14 Jun, 16:00", OrderStatus.PACKING))
-            steps.add(TrackingStep("Pembayaran Berhasil", "Pembayaran telah dikonfirmasi.", "14 Jun, 15:30", OrderStatus.PENDING_PAYMENT))
+            steps.add(TrackingStep("Pesanan Dibuat", "Pesanan berhasil dibuat.", "14 Jun, 15:30", OrderStatus.PENDING_PAYMENT))
         }
         OrderStatus.SHIPPING -> {
             steps.add(TrackingStep("Dalam Perjalanan", "Pesanan dalam perjalanan ke alamat tujuan.", "20 Jun, 10:30", OrderStatus.SHIPPING))
             steps.add(TrackingStep("Sedang Dikemas", "Kambing telah diperiksa kesehatannya dan siap kirim.", "20 Jun, 08:00", OrderStatus.PACKING))
-            steps.add(TrackingStep("Pembayaran Berhasil", "Pembayaran telah diterima oleh sistem.", "19 Jun, 21:00", OrderStatus.PENDING_PAYMENT))
+            steps.add(TrackingStep("Pesanan Dibuat", "Pesanan berhasil dibuat.", "19 Jun, 21:00", OrderStatus.PENDING_PAYMENT))
         }
         OrderStatus.PACKING -> {
             steps.add(TrackingStep("Sedang Dikemas", "Peternak sedang melakukan verifikasi akhir kondisi kambing.", "20 Jun, 09:15", OrderStatus.PACKING))
-            steps.add(TrackingStep("Pembayaran Berhasil", "Pembayaran telah dikonfirmasi.", "20 Jun, 09:00", OrderStatus.PENDING_PAYMENT))
+            steps.add(TrackingStep("Pesanan Dibuat", "Pesanan berhasil dibuat.", "20 Jun, 09:00", OrderStatus.PENDING_PAYMENT))
         }
         OrderStatus.PENDING_PAYMENT -> {
-            steps.add(TrackingStep("Menunggu Pembayaran", "Silakan selesaikan pembayaran sebelum batas waktu.", "20 Jun, 08:45", OrderStatus.PENDING_PAYMENT))
+            steps.add(TrackingStep("Menunggu Konfirmasi", "Silakan tunggu peternak mengonfirmasi pesanan Anda.", "20 Jun, 08:45", OrderStatus.PENDING_PAYMENT))
         }
     }
     return steps

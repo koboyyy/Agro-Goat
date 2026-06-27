@@ -1,4 +1,5 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.outlined.*
 
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -1052,7 +1053,7 @@ fun LoginScreen(
                                 placeholder = { Text("Masukkan nama lengkap", color = Color.Gray.copy(alpha = 0.5f), fontSize = 14.sp) },
                                 leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Default.Person,
+                                        imageVector = Icons.Outlined.Person,
                                         contentDescription = null,
                                         tint = Color.Gray,
                                         modifier = Modifier.size(18.dp)
@@ -1709,7 +1710,7 @@ fun LoginScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Person,
+                                            imageVector = Icons.Outlined.Person,
                                             contentDescription = null,
                                             tint = if (isPedagangSelected) Color.White else Color.Gray,
                                             modifier = Modifier.size(20.dp)
@@ -1764,7 +1765,7 @@ fun LoginScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Person,
+                                            imageVector = Icons.Outlined.Person,
                                             contentDescription = null,
                                             tint = if (isPenjualSelected) Color.White else Color.Gray,
                                             modifier = Modifier.size(20.dp)

@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -43,14 +45,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.launch
 import com.agrogoat.app.viewmodel.AgroGoatViewModel
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.Brush
+import com.agrogoat.app.data.OrderStatus
+import com.agrogoat.app.data.OrderItem
 import java.util.UUID
 
 enum class AdminTab {
     HOME,
     DATA,
     JUAL,
-    LAPORAN,
+    PESANAN,
     PESAN,
+    LAPORAN,
     PROFIL
 }
 
@@ -159,7 +167,8 @@ fun AdminDashboardScreen(
                     when (currentTab) {
                         AdminTab.HOME -> AdminHomeTab(
                             viewModel = viewModel,
-                            onNavigateToData = { currentTab = AdminTab.DATA }
+                            onNavigateToData = { currentTab = AdminTab.DATA },
+                            onNavigateToLaporan = { currentTab = AdminTab.LAPORAN }
                         )
                         AdminTab.DATA -> AdminDataTab(
                             viewModel = viewModel,
@@ -168,6 +177,7 @@ fun AdminDashboardScreen(
                             onAddClick = { currentTab = AdminTab.JUAL }
                         )
                         AdminTab.JUAL -> AdminJualTab(
+                            viewModel = viewModel,
                             onSave = { newGoat ->
                                 val goatWithOwner = newGoat.copy(sellerEmail = currentUserEmail)
                                 viewModel.addGoatItem(goatWithOwner)
@@ -175,12 +185,16 @@ fun AdminDashboardScreen(
                             },
                             onCancel = { currentTab = AdminTab.HOME }
                         )
-                        AdminTab.LAPORAN -> AdminSalesReportScreen(
+                        AdminTab.PESANAN -> AdminPesananTab(
+                            viewModel = viewModel,
                             onBack = { currentTab = AdminTab.HOME }
                         )
                         AdminTab.PESAN -> AdminChatDashboardScreen(
                             viewModel = viewModel,
                             onChatClick = { selectedChatRoomForAdmin = it },
+                            onBack = { currentTab = AdminTab.HOME }
+                        )
+                        AdminTab.LAPORAN -> AdminSalesReportScreen(
                             onBack = { currentTab = AdminTab.HOME }
                         )
                         AdminTab.PROFIL -> AdminProfilScreen(
@@ -242,7 +256,7 @@ fun AdminDashboardScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    imageVector = Icons.Outlined.Check,
                                     contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier.size(24.dp)
@@ -321,112 +335,210 @@ fun AdminDashboardScreen(
     }
 }
 
+data class MockTransaction(
+    val id: String,
+    val date: String,
+    val buyer: String,
+    val price: String
+)
+
+fun formatShortRupiah(amount: Long): String {
+    return if (amount >= 1_000_000) {
+        val doubleVal = amount.toDouble() / 1_000_000.0
+        val formatted = String.format(java.util.Locale.US, "%.1f", doubleVal)
+        "Rp ${formatted.replace(".0", "")}jt"
+    } else if (amount >= 1_000) {
+        "Rp ${amount / 1000}rb"
+    } else {
+        "Rp $amount"
+    }
+}
+
+@Composable
+fun SalesTrendChart(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+        
+        val points = listOf(
+            Offset(width * 0.05f, height * 0.85f),
+            Offset(width * 0.20f, height * 0.55f),
+            Offset(width * 0.35f, height * 0.65f),
+            Offset(width * 0.50f, height * 0.40f),
+            Offset(width * 0.65f, height * 0.48f),
+            Offset(width * 0.80f, height * 0.25f),
+            Offset(width * 0.95f, height * 0.18f)
+        )
+        
+        // Path for background gradient fill under the chart curve
+        val fillPath = Path().apply {
+            moveTo(points.first().x, height)
+            points.forEach { lineTo(it.x, it.y) }
+            lineTo(points.last().x, height)
+            close()
+        }
+        
+        // Path for the trend line
+        val linePath = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            for (i in 1 until points.size) {
+                lineTo(points[i].x, points[i].y)
+            }
+        }
+        
+        // Draw the background fill gradient
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(Color(0xFF2E7D32).copy(alpha = 0.25f), Color(0xFF2E7D32).copy(alpha = 0.0f))
+            )
+        )
+        
+        // Draw the main line path
+        drawPath(
+            path = linePath,
+            color = Color(0xFF2E7D32),
+            style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+        
+        // Draw circular markers at each point
+        points.forEach { pt ->
+            drawCircle(
+                color = Color(0xFF1B5E20),
+                radius = 5.dp.toPx(),
+                center = pt
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 2.dp.toPx(),
+                center = pt
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminHomeTab(
     viewModel: AgroGoatViewModel,
-    onNavigateToData: () -> Unit
+    onNavigateToData: () -> Unit,
+    onNavigateToLaporan: () -> Unit
 ) {
     val userName by viewModel.userName.collectAsState()
     val goats by viewModel.myGoats.collectAsState()
     val orders by viewModel.orders.collectAsState()
+    val profiles by viewModel.usersProfiles.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        // Top Banner
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF1F6E35))
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 24.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Dashboard Penjual",
-                    fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "Selamat Datang, $userName 👋",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = "Kelola hewan ternak dan pantau pesanan Anda secara real-time.",
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
+    // Calculations for status metrics
+    val completedOrders = orders.filter { it.status == OrderStatus.COMPLETED }
+    val totalIncome = completedOrders.sumOf { it.totalPrice }
+    val totalOrdersCount = orders.size
+    val totalGoatsSold = completedOrders.size
+
+    // Dynamic stats fallback to mockup figures if empty
+    val incomeText = if (totalIncome > 0L) formatShortRupiah(totalIncome) else "Rp 12.5jt"
+    val ordersText = if (totalOrdersCount > 0) "$totalOrdersCount Order" else "24 Order"
+    val soldText = if (totalGoatsSold > 0) "$totalGoatsSold Ekor" else "32 Ekor"
+
+    Scaffold(
+        topBar = {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(3.dp),
+                color = Color(0xFF2E7D32)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Dashboard Penjual",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
-        }
-
+        },
+        containerColor = Color(0xFF4CAF50)
+    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Stats Grid
-            Row(
+            
+            // 1. Stats card with 3 pills
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                // Stat 1: Total Ternak
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    // Stat 1: Pendapatan (Light green)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFFE8F5E9))
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFE8F5E9)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("🐐", fontSize = 18.sp)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "Pendapatan", fontSize = 11.sp, color = Color(0xFF757575))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(text = incomeText, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                         }
-                        Text("Total Ternak", fontSize = 12.sp, color = Color.Gray)
-                        Text("${goats.size} Ekor", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
-                }
 
-                // Stat 2: Pesanan Baru
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    // Stat 2: Transaksi (Light blue)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFFE3F2FD))
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFFF3E0)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("📦", fontSize = 18.sp)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "Transaksi", fontSize = 11.sp, color = Color(0xFF757575))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(text = ordersText, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
                         }
-                        Text("Total Pesanan", fontSize = 12.sp, color = Color.Gray)
-                        Text("${orders.size} Transaksi", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    }
+
+                    // Stat 3: Terjual (Light yellow)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFFFFF8E1))
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "Terjual", fontSize = 11.sp, color = Color(0xFF757575))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(text = soldText, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF57C00))
+                        }
                     }
                 }
             }
 
-            // Quick Actions Card
+            // 2. Trend Sales Line Chart Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -434,104 +546,200 @@ fun AdminHomeTab(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
                 ) {
-                    Text(
-                        text = "Navigasi Cepat",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tren Penjualan Minggu Ini",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color.Black
+                        )
+                        Text(
+                            text = "Lihat Detail →",
+                            color = Color(0xFF2E7D32),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clickable { onNavigateToLaporan() }
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(18.dp))
+                    
+                    SalesTrendChart(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
                     )
+                    
+                    Spacer(modifier = Modifier.height(10.dp))
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Button(
-                            onClick = onNavigateToData,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6E35)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Lihat Data Ternak", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        val labels = listOf("Sen", "Sel", "Rab", "Kam", "Jum")
+                        labels.forEachIndexed { idx, day ->
+                            val weightVal = if (idx == 0 || idx == labels.size - 1) 0.05f else 0.22f
+                            Text(
+                                text = day,
+                                fontSize = 11.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }
             }
 
-            // Recent Goat Listings
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Ternak Terbaru",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
+            // 3. Products Terlaris Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Produk Terlaris Bulan Ini",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color.Black
+                    )
 
-                if (goats.isEmpty()) {
-                    Box(
+                    // Card Item 1
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF5F5F5))
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Belum ada data ternak", color = Color.Gray, fontSize = 13.sp)
+                        Text(text = "1. Kambing Etawa Jantan", fontSize = 13.sp, color = Color.Black)
+                        Text(text = "12 Ekor", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                     }
-                } else {
-                    goats.take(3).forEach { goat ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                val picRes = when (goat.category) {
-                                    GoatCategory.POTONG -> R.drawable.burawa
-                                    GoatCategory.ETAWA -> R.drawable.etawa
-                                    GoatCategory.PERAH -> R.drawable.kacang
-                                }
-                                GoatImage(
-                                    imageUri = goat.imageUri,
-                                    defaultImageRes = picRes,
-                                    contentDescription = goat.name,
-                                    modifier = Modifier
-                                        .size(52.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = goat.name,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = Color.Black
-                                    )
-                                    Text(
-                                        text = "${goat.category.displayName} • ${goat.gender}",
-                                        fontSize = 12.sp,
-                                        color = Color.Gray
-                                    )
-                                }
-                                Text(
-                                    text = formatRupiah(goat.price),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF1F6E35)
-                                )
-                            }
-                        }
+
+                    // Card Item 2
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF5F5F5))
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "2. Kambing Boer Betina", fontSize = 13.sp, color = Color.Black)
+                        Text(text = "8 Ekor", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                    }
+
+                    // Card Item 3
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF5F5F5))
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "3. Kambing Kacang Muda", fontSize = 13.sp, color = Color.Black)
+                        Text(text = "5 Ekor", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                     }
                 }
             }
+
+            // 4. Transaksi Terbaru Label
+            Text(
+                text = "Transaksi Terbaru",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = Color.Black,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            // Dynamic or fallback mockup Transactions List
+            val transactionsList = if (orders.isEmpty()) {
+                listOf(
+                    MockTransaction("#INV-2506015", "28 Jun", "Budi Santoso", "Rp 3.5jt"),
+                    MockTransaction("#INV-2506014", "27 Jun", "Siti Aisyah", "Rp 4.0jt")
+                )
+            } else {
+                orders.take(3).map { order ->
+                    val buyerName = profiles[order.buyerUid]?.get("name") as? String ?: "Pembeli"
+                    MockTransaction(
+                        id = "#INV-${order.id.take(8).uppercase()}",
+                        date = order.orderDate,
+                        buyer = buyerName,
+                        price = formatShortRupiah(order.totalPrice)
+                    )
+                }
+            }
+
+            transactionsList.forEach { inv ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE8F5E9)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "💰", fontSize = 20.sp)
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = inv.id,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${inv.date} • ${inv.buyer}",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+
+                        Text(
+                            text = inv.price,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color.Black
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
@@ -796,8 +1004,316 @@ fun AdminDataTab(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminJualTab(
+    viewModel: AgroGoatViewModel,
+    onSave: (GoatItem) -> Unit,
+    onCancel: () -> Unit
+) {
+    var isAddingGoat by remember { mutableStateOf(false) }
+
+    if (isAddingGoat) {
+        AddGoatForm(
+            onSave = { newGoat ->
+                onSave(newGoat)
+                isAddingGoat = false
+            },
+            onCancel = {
+                isAddingGoat = false
+            }
+        )
+    } else {
+        val goats by viewModel.myGoats.collectAsState()
+        val orders by viewModel.orders.collectAsState()
+        val context = LocalContext.current
+
+        // Calculations for status metrics
+        val completedOrders = orders.filter { it.status == OrderStatus.COMPLETED }
+        val totalIncome = completedOrders.sumOf { it.totalPrice }
+        val totalGoatsSold = completedOrders.size
+
+        val stockCount = goats.size
+        val incomeText = if (totalIncome > 0L) formatShortRupiah(totalIncome) else "12.5jt"
+        val soldText = if (totalGoatsSold > 0) "$totalGoatsSold" else "8"
+        val averagePriceText = if (totalGoatsSold > 0) formatShortRupiah(totalIncome / totalGoatsSold) else "3.8jt"
+
+        Scaffold(
+            topBar = {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(4.dp),
+                    color = Color(0xFF2E7D32)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .statusBarsPadding()
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Dashboard Jual Kambing",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            },
+            containerColor = Color(0xFF4CAF50)
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Alert Banner: Transaksi Etawa Gagal
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                    border = BorderStroke(1.dp, Color(0xFFFFCDD2))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(text = "⚠️", fontSize = 16.sp)
+                        Column {
+                            Text(
+                                text = "Transaksi Etawa Gagal",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFC62828),
+                                fontSize = 13.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Stok Sudah Terjual. Silakan pilih kambing lain di bawah.",
+                                color = Color(0xFFC62828),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+
+                // 2. Stats cards in a single row
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Stok Jual
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE8F5E9))
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = "Stok Jual", fontSize = 10.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(text = "$stockCount", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = "▼ 1 Habis", fontSize = 9.sp, color = Color(0xFFD32F2F), fontWeight = FontWeight.Medium)
+                            }
+                        }
+
+                        // Pendapatan
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE8F5E9))
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = "Pendapatan", fontSize = 10.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(text = incomeText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = "Bulan ini", fontSize = 9.sp, color = Color.Gray)
+                            }
+                        }
+
+                        // Terjual
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFFFF8E1))
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = "Terjual", fontSize = 10.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(text = soldText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF57C00))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = "Ekor", fontSize = 9.sp, color = Color.Gray)
+                            }
+                        }
+
+                        // Rata-rata
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE3F2FD))
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = "Rata-rata", fontSize = 10.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(text = averagePriceText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = "Per ekor", fontSize = 9.sp, color = Color.Gray)
+                            }
+                        }
+                    }
+                }
+
+                // 3. Stok Siap Jual Section Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Stok Siap Jual",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = Color.Black
+                    )
+                    
+                    Button(
+                        onClick = { isAddingGoat = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B5E20)),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("+ Tambah Stok", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+
+                // 4. List of Goat stock
+                if (goats.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                            Text("Belum ada stok kambing.", color = Color.Gray, fontSize = 13.sp)
+                        }
+                    }
+                } else {
+                    goats.forEach { goat ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val picRes = when (goat.category) {
+                                    GoatCategory.POTONG -> R.drawable.burawa
+                                    GoatCategory.ETAWA -> R.drawable.etawa
+                                    GoatCategory.PERAH -> R.drawable.kacang
+                                }
+                                GoatImage(
+                                    imageUri = goat.imageUri,
+                                    defaultImageRes = picRes,
+                                    contentDescription = goat.name,
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                )
+                                
+                                Spacer(modifier = Modifier.width(14.dp))
+                                
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = goat.name,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = Color.Black
+                                    )
+                                    Text(
+                                        text = "${goat.category.displayName} • ${goat.gender} • ${goat.weight} Kg",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Color(0xFFE8F5E9))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "✓ Sehat",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF2E7D32)
+                                        )
+                                    }
+                                }
+                                
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = formatShortRupiah(goat.price),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color.Black
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = {
+                                            Toast.makeText(context, "Kambing ${goat.name} dipromosikan untuk dijual!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(28.dp)
+                                    ) {
+                                        Text("Jual", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddGoatForm(
     onSave: (GoatItem) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -811,9 +1327,9 @@ fun AdminJualTab(
     var location by remember { mutableStateOf("Bengkalis") }
     var desc by remember { mutableStateOf("Kambing sangat jinak, sehat, gemuk, makannya teratur.") }
     var health by remember { mutableStateOf("Sehat") }
+    val coroutineScope = rememberCoroutineScope()
     var imageUriStr by remember { mutableStateOf<String?>(null) }
     var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    val coroutineScope = rememberCoroutineScope()
     var isSaving by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
@@ -844,16 +1360,22 @@ fun AdminJualTab(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF1F6E35))
+                .background(Color(0xFF2E7D32))
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            Text(
-                text = "Tambah Ternak Baru",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+                    Icon(imageVector = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Tambah Ternak Baru",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
         }
 
         Column(
@@ -862,7 +1384,7 @@ fun AdminJualTab(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Upload Picture Placeholder
+            // Upload Picture
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -878,7 +1400,7 @@ fun AdminJualTab(
                 if (bitmap != null) {
                     androidx.compose.foundation.Image(
                         bitmap = bitmap!!.asImageBitmap(),
-                        contentDescription = "Selected Image",
+                        contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop
                     )
@@ -889,17 +1411,10 @@ fun AdminJualTab(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
-                            imageVector = Icons.Default.PhotoCamera,
+                            imageVector = Icons.Outlined.PhotoCamera,
                             contentDescription = null,
-                            tint = Color(0xFF1F6E35),
+                            tint = Color(0xFF2E7D32),
                             modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "📷 Ketuk untuk upload foto",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = Color(0xFF1F6E35)
                         )
                         Text(
                             text = "JPG, PNG (Maks. 5MB)",
@@ -932,7 +1447,7 @@ fun AdminJualTab(
                     label = { Text("Jenis Ras *") },
                     trailingIcon = {
                         IconButton(onClick = { catExpanded = true }) {
-                            Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null)
+                            Icon(imageVector = Icons.Outlined.ArrowDropDown, contentDescription = null)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -1017,7 +1532,7 @@ fun AdminJualTab(
                     label = { Text("Status Kesehatan *") },
                     trailingIcon = {
                         IconButton(onClick = { healthExpanded = true }) {
-                            Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null)
+                            Icon(imageVector = Icons.Outlined.ArrowDropDown, contentDescription = null)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -1164,7 +1679,7 @@ fun AdminGoatDetailView(
                     .background(Color.White.copy(alpha = 0.2f))
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = "Kembali",
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
@@ -1339,7 +1854,7 @@ fun AdminEditGoatView(
                     .background(Color.White.copy(alpha = 0.2f))
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = "Batal",
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
@@ -1377,7 +1892,7 @@ fun AdminEditGoatView(
                     label = { Text("Jenis Ras *") },
                     trailingIcon = {
                         IconButton(onClick = { catExpanded = true }) {
-                            Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null)
+                            Icon(imageVector = Icons.Outlined.ArrowDropDown, contentDescription = null)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -1516,12 +2031,13 @@ fun AdminBottomNavigation(
             val inactiveColor = Color.Gray.copy(alpha = 0.6f)
 
             listOf(
-                Triple(AdminTab.HOME, Icons.Default.Home, "Home"),
-                Triple(AdminTab.DATA, Icons.Default.Pets, "Data"),
-                Triple(AdminTab.JUAL, Icons.Default.LocalOffer, "Jual"),
-                Triple(AdminTab.LAPORAN, Icons.Default.Assessment, "Laporan"),
-                Triple(AdminTab.PESAN, Icons.Default.Chat, "Pesan"),
-                Triple(AdminTab.PROFIL, Icons.Default.Person, "Profil")
+                Triple(AdminTab.HOME, Icons.Outlined.Home, "Home"),
+                Triple(AdminTab.DATA, Icons.Outlined.Pets, "Data"),
+                Triple(AdminTab.JUAL, Icons.Outlined.LocalOffer, "Jual"),
+                Triple(AdminTab.PESANAN, Icons.Outlined.Receipt, "Pesanan"),
+                Triple(AdminTab.PESAN, Icons.Outlined.Chat, "Chet"),
+                Triple(AdminTab.LAPORAN, Icons.Outlined.Assessment, "Laporan"),
+                Triple(AdminTab.PROFIL, Icons.Outlined.Person, "Profil")
             ).forEach { (tab, icon, label) ->
                 val isSelected = activeTab == tab
                 Surface(
@@ -1552,6 +2068,495 @@ fun AdminBottomNavigation(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdminPesananTab(
+    viewModel: AgroGoatViewModel,
+    onBack: () -> Unit
+) {
+    val orders by viewModel.orders.collectAsState()
+    val profiles by viewModel.usersProfiles.collectAsState()
+    val context = LocalContext.current
+
+    // Alert banner pending count
+    val pendingOrders = orders.filter { it.status == OrderStatus.PENDING_PAYMENT }
+    val pendingCount = pendingOrders.size
+
+    // Accept / Reject Modal State
+    var acceptedOrder by remember { mutableStateOf<OrderItem?>(null) }
+    var rejectedOrder by remember { mutableStateOf<OrderItem?>(null) }
+
+    Scaffold(
+        topBar = {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(4.dp),
+                color = Color(0xFF2E7D32)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Kembali",
+                            tint = Color.White
+                        )
+                    }
+                    Text(
+                        text = "Konfirmasi Pesanan",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.width(48.dp))
+                }
+            }
+        },
+        containerColor = Color(0xFF4CAF50)
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // 1. Pending Banner
+            if (pendingCount > 0) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                    border = BorderStroke(1.dp, Color(0xFFFFB74D))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFEF6C00)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "$pendingCount",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Menunggu Konfirmasi Anda",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE65100),
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                text = "Segera tolak atau terima agar pembeli tidak menunggu.",
+                                color = Color(0xFFE65100),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 2. Orders list
+            if (orders.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("📦", fontSize = 48.sp)
+                        Text("Belum ada pesanan masuk.", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(orders) { order ->
+                        val buyerName = profiles[order.buyerUid]?.get("name") as? String ?: "Pembeli"
+                        
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = buyerName,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = Color.Black
+                                    )
+                                    Text(
+                                        text = "10 menit lalu",
+                                        fontSize = 11.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                                
+                                Text(
+                                    text = "Membeli 1x ${order.goat.name}",
+                                    fontSize = 13.sp,
+                                    color = Color.Gray
+                                )
+
+                                // Payment summary box
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFFF1F8E9))
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Total Pembayaran",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF2E7D32),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = formatRupiah(order.totalPrice),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2E7D32)
+                                    )
+                                }
+                                
+                                // Buttons Row (Terima and Tolak)
+                                if (order.status == OrderStatus.PENDING_PAYMENT) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                viewModel.db.collection("orders").document(order.id).update("status", "REJECTED")
+                                                rejectedOrder = order
+                                            },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(40.dp),
+                                            border = BorderStroke(1.dp, Color(0xFFE53935)),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
+                                        ) {
+                                            Text("Tolak ✕", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                viewModel.db.collection("orders").document(order.id).update("status", OrderStatus.COMPLETED.name)
+                                                acceptedOrder = order
+                                            },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(40.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text("Terima ✓", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                                        }
+                                    }
+                                } else {
+                                    // Status Badge info
+                                    val (statusText, badgeColor) = when(order.status) {
+                                        OrderStatus.PACKING -> Pair("Diproses", Color(0xFFFFF3E0))
+                                        OrderStatus.SHIPPING -> Pair("Dikirim", Color(0xFFE3F2FD))
+                                        OrderStatus.COMPLETED -> Pair("Selesai", Color(0xFFE8F5E9))
+                                        else -> Pair(order.status.name, Color(0xFFECEFF1))
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(badgeColor)
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(text = "Status: $statusText", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal Accepted Overlay
+    if (acceptedOrder != null) {
+        val order = acceptedOrder!!
+        val buyerName = profiles[order.buyerUid]?.get("name") as? String ?: "Pembeli"
+        Dialog(onDismissRequest = { acceptedOrder = null }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Check icon circle
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE8F5E9)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF4CAF50)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Pesanan Diterima! ✅",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+
+                    Text(
+                        text = "Anda telah menerima pesanan dari $buyerName",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+
+                    // Details Card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFF1F8E9))
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "DETAIL PESANAN",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Pembeli",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = buyerName,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                            Text(
+                                text = "Item",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = "1x ${order.goat.name} (Si Belang)",
+                                fontSize = 13.sp,
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Total",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = formatRupiah(order.totalPrice),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFF4CAF50))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "✓ Diterima",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { acceptedOrder = null },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Kembali ke Daftar Pesanan", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal Rejected Overlay
+    if (rejectedOrder != null) {
+        val order = rejectedOrder!!
+        val buyerName = profiles[order.buyerUid]?.get("name") as? String ?: "Pembeli"
+        Dialog(onDismissRequest = { rejectedOrder = null }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Close icon circle
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFFEBEE)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE53935)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Pesanan Ditolak ❌",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+
+                    Text(
+                        text = "Anda telah menolak pesanan dari $buyerName",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+
+                    // Details Card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFFFEBEE))
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "ALASAN PENOLAKAN",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFC62828)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Stok sudah terjual di kandang (Offline)",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Item: 1x ${order.goat.name}",
+                                fontSize = 11.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { rejectedOrder = null },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Kembali ke Daftar Pesanan", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }

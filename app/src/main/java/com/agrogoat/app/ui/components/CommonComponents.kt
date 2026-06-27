@@ -1,4 +1,5 @@
 package com.agrogoat.app.ui.components
+import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -143,7 +144,7 @@ fun AppHeader(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Notifications,
+                    imageVector = Icons.Outlined.Notifications,
                     contentDescription = "Notification",
                     tint = Color.Black,
                     modifier = Modifier.size(24.dp)
@@ -223,7 +224,7 @@ fun SearchAndFilterBar(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Search,
+                    imageVector = Icons.Outlined.Search,
                     contentDescription = "Cari Kambing",
                     tint = Color.Gray,
                     modifier = Modifier.size(24.dp)
@@ -569,7 +570,7 @@ fun GoatVerticalRowItem(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (goat.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    imageVector = if (goat.isFavorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
                     contentDescription = "Favorite",
                     tint = if (goat.isFavorite) Color.Red else Color.LightGray,
                     modifier = Modifier.size(20.dp)

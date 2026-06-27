@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.components.detail
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,7 +55,7 @@ fun GoatHeroImage(
                 .clickable(onClick = onBack),
             contentAlignment = Alignment.Center
         ){
-            Icon(Icons.Default.ArrowBack,null,tint=Color.Black)
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack,null,tint=Color.Black)
         }
 
         Box(
@@ -68,7 +70,7 @@ fun GoatHeroImage(
             contentAlignment = Alignment.Center
         ){
             Icon(
-                if(isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                if(isFavorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
                 null,
                 tint = if(isFavorite) Color.Red else Color.Gray
             )

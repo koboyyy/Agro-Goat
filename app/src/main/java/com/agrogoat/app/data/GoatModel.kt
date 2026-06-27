@@ -40,7 +40,7 @@ data class ChatRoom(
 )
 
 enum class OrderStatus(val displayName: String, val stepIndex: Int) {
-    PENDING_PAYMENT("Menunggu Pembayaran", 0),
+    PENDING_PAYMENT("Menunggu Konfirmasi", 0),
     PACKING("Dikemas", 1),
     SHIPPING("Dikirim", 2),
     COMPLETED("Selesai", 3)
@@ -53,7 +53,13 @@ data class OrderItem(
     val totalPrice: Long,
     val status: OrderStatus = OrderStatus.PENDING_PAYMENT,
     val orderDate: String,
-    val buyerUid: String? = null
+    val buyerUid: String? = null,
+    val buyerName: String? = null,
+    val buyerPhone: String? = null,
+    val buyerEmail: String? = null,
+    val buyerNotes: String? = null,
+    val bookingDate: String? = null,
+    val bookingTimeSlot: String? = null
 )
 
 data class MessageItem(
@@ -129,7 +135,9 @@ fun mapToMessageItem(map: Map<String, Any?>): MessageItem = MessageItem(
 
 fun OrderItem.toMap(): Map<String, Any?> = mapOf(
     "id" to id, "goat" to goat.toMap(), "selectedWeight" to selectedWeight.toLong(),
-    "totalPrice" to totalPrice, "status" to status.name, "orderDate" to orderDate, "buyerUid" to buyerUid
+    "totalPrice" to totalPrice, "status" to status.name, "orderDate" to orderDate, "buyerUid" to buyerUid,
+    "buyerName" to buyerName, "buyerPhone" to buyerPhone, "buyerEmail" to buyerEmail, "buyerNotes" to buyerNotes,
+    "bookingDate" to bookingDate, "bookingTimeSlot" to bookingTimeSlot
 )
 
 @Suppress("UNCHECKED_CAST")
@@ -140,7 +148,13 @@ fun mapToOrderItem(map: Map<String, Any?>): OrderItem = OrderItem(
     totalPrice = map["totalPrice"] as? Long ?: 0L,
     status = try { OrderStatus.valueOf(map["status"] as? String ?: "PENDING_PAYMENT") } catch(e: Exception) { OrderStatus.PENDING_PAYMENT },
     orderDate = map["orderDate"] as? String ?: "",
-    buyerUid = map["buyerUid"] as? String
+    buyerUid = map["buyerUid"] as? String,
+    buyerName = map["buyerName"] as? String,
+    buyerPhone = map["buyerPhone"] as? String,
+    buyerEmail = map["buyerEmail"] as? String,
+    buyerNotes = map["buyerNotes"] as? String,
+    bookingDate = map["bookingDate"] as? String,
+    bookingTimeSlot = map["bookingTimeSlot"] as? String
 )
 
 fun NotificationItem.toMap(): Map<String, Any?> = mapOf(

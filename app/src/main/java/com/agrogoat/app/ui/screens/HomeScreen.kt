@@ -1,4 +1,5 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.outlined.*
 
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -51,6 +52,7 @@ fun HomeScreen(
     val goats by viewModel.goats.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedHomeCategory by viewModel.selectedHomeCategory.collectAsState()
+    val currentTab by viewModel.currentTab.collectAsState()
 
     // Gender filter state
     var selectedGenderFilter by remember { mutableStateOf("Semua") }
@@ -68,13 +70,9 @@ fun HomeScreen(
         mutableStateOf(false)
     }
 
-    LaunchedEffect(currentSubScreen) {
-        viewModel.setHideBottomBar(currentSubScreen != HomeSubScreen.HOME)
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.setHideBottomBar(false)
+    LaunchedEffect(currentSubScreen, currentTab) {
+        if (currentTab == AppTab.BERANDA) {
+            viewModel.setHideBottomBar(currentSubScreen != HomeSubScreen.HOME)
         }
     }
 
@@ -333,11 +331,9 @@ fun HomeScreen(
                     },
 
                     onChat = {
-                        // Ambil email penjual dari data kambing (gunakan email admin sebagai fallback jika kosong)
-                        val emailTujuan = it.sellerEmail ?: "admin@agrogoat.com"
-
-                        // Beritahu ViewModel untuk memulai chat dengan email tersebut
+                        val emailTujuan = if (!it.sellerEmail.isNullOrBlank()) it.sellerEmail else "admin@agrogoat.com"
                         viewModel.startChatWith(emailTujuan)
+                        currentSubScreen = HomeSubScreen.HOME
                     },
 
                     onOrder = {
@@ -383,7 +379,7 @@ fun HomeScreen(
                             .background(Color.White.copy(alpha = 0.1f), CircleShape)
                             .size(36.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = Color.White)
                     }
                 }
 

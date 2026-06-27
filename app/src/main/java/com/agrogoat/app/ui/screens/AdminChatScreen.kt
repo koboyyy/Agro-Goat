@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import android.widget.Toast
 import androidx.compose.animation.core.*
@@ -63,7 +65,7 @@ fun AdminChatDashboardScreen(
                 ) {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "Kembali",
                             tint = Color.White
                         )
@@ -240,7 +242,7 @@ fun AdminChatDetailScreen(
                 ) {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "Kembali",
                             tint = Color.White
                         )
@@ -300,13 +302,13 @@ fun AdminChatDetailScreen(
                             onClick = { Toast.makeText(context, "Memanggil...", Toast.LENGTH_SHORT).show() },
                             modifier = Modifier.size(24.dp)
                         ) {
-                            Icon(Icons.Default.Call, contentDescription = "Panggil", tint = Color.White)
+                            Icon(Icons.Outlined.Call, contentDescription = "Panggil", tint = Color.White)
                         }
                         IconButton(
                             onClick = { Toast.makeText(context, "Lainnya...", Toast.LENGTH_SHORT).show() },
                             modifier = Modifier.size(24.dp)
                         ) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Menu", tint = Color.White)
+                            Icon(Icons.Outlined.MoreVert, contentDescription = "Menu", tint = Color.White)
                         }
                     }
                 }
@@ -455,7 +457,7 @@ fun AdminChatDetailScreen(
                         placeholder = { Text("Tulis pesan...", color = Color.Gray, fontSize = 14.sp) },
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.SentimentSatisfiedAlt,
+                                imageVector = Icons.Outlined.SentimentSatisfiedAlt,
                                 contentDescription = "Emoji",
                                 tint = Color.Gray
                             )
@@ -484,7 +486,7 @@ fun AdminChatDetailScreen(
                             .background(Color(0xFF1B5E20))
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Send,
+                            imageVector = Icons.AutoMirrored.Outlined.Send,
                             contentDescription = "Kirim",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)

@@ -117,12 +117,6 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 
-  // Material Symbols
-  implementation("androidx.compose.material:material-icons-extended:<versi-compose>")
-
-  //Compose BOM
-  implementation("androidx.compose.material:material-icons-extended:<versi-compose>")
-
   //Firebase
   implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
   implementation("com.google.firebase:firebase-analytics")

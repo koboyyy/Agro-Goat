@@ -1,4 +1,6 @@
 package com.agrogoat.app.ui.screens
+import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.outlined.*
 
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -121,7 +123,7 @@ fun ChatListScreen(
                         modifier = Modifier.align(Alignment.CenterStart)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "Kembali",
                             tint = Color.Black
                         )
@@ -280,7 +282,7 @@ fun ChatDetailScreen(
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "Kembali",
                             tint = Color.White,
                             modifier = Modifier.size(22.dp)
@@ -343,7 +345,7 @@ fun ChatDetailScreen(
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Call,
+                                imageVector = Icons.Outlined.Call,
                                 contentDescription = "Panggil",
                                 tint = Color.White
                             )
@@ -355,7 +357,7 @@ fun ChatDetailScreen(
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.MoreVert,
+                                imageVector = Icons.Outlined.MoreVert,
                                 contentDescription = "Menu",
                                 tint = Color.White
                             )
@@ -519,7 +521,7 @@ fun TransferProofAttachment(text: String) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
+                    imageVector = Icons.Outlined.CheckCircle,
                     contentDescription = null,
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier.size(48.dp)
@@ -638,7 +640,7 @@ fun ChatInput(
             ) {
                 if (isTyping) {
                     Icon(
-                        imageVector = Icons.Default.Send,
+                        imageVector = Icons.AutoMirrored.Outlined.Send,
                         contentDescription = "Kirim",
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
