@@ -44,8 +44,15 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.asImageBitmap
+import android.graphics.ImageDecoder
+import androidx.compose.ui.platform.LocalContext
+import androidx.annotation.DrawableRes
 import com.agrogoat.app.R
 import com.agrogoat.app.data.*
+import com.agrogoat.app.utils.ImageCache
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -451,8 +458,9 @@ fun GoatVerticalRowItem(
                     .background(picBgColor),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = picRes),
+                GoatImage(
+                    imageUri = goat.imageUri,
+                    defaultImageRes = picRes,
                     contentDescription = goat.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -622,5 +630,57 @@ fun HandDeliveryIcon(modifier: Modifier = Modifier, tint: Color = Color(0xFF2E7D
         // wheels
         drawCircle(color = tint, radius = w * 0.08f, center = Offset(w * 0.35f, h * 0.78f))
         drawCircle(color = tint, radius = w * 0.08f, center = Offset(w * 0.7f, h * 0.78f))
+    }
+}
+
+@Composable
+fun GoatImage(
+    imageUri: String?,
+    @DrawableRes defaultImageRes: Int,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    val context = LocalContext.current
+    var bitmap by remember(imageUri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    LaunchedEffect(imageUri) {
+        if (!imageUri.isNullOrEmpty()) {
+            try {
+                if (imageUri.startsWith("http://") || imageUri.startsWith("https://")) {
+                    val cachedBitmap = ImageCache.fetchAndCacheImage(context, imageUri)
+                    if (cachedBitmap != null) {
+                        bitmap = cachedBitmap
+                    }
+                } else {
+                    val uri = android.net.Uri.parse(imageUri)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                        bitmap = android.graphics.ImageDecoder.decodeBitmap(source)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        bitmap = android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap!!.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    } else {
+        Image(
+            painter = painterResource(id = defaultImageRes),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
     }
 }

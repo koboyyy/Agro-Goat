@@ -42,7 +42,8 @@ fun GoatDetailView(
                 contentDescription = goat.name,
                 isFavorite = goat.isFavorite,
                 onBack = onBack,
-                onFavorite = onToggleFav
+                onFavorite = onToggleFav,
+                imageUri = goat.imageUri
             )
 
             GoatDetailCard {

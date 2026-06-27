@@ -6,7 +6,7 @@ plugins {
   alias(libs.plugins.secrets)
 
   //firebase
-  alias(libs.plugins.google.gms.google-services)
+  alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -126,4 +126,7 @@ dependencies {
   //Firebase
   implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
   implementation("com.google.firebase:firebase-analytics")
+  implementation(libs.firebase.auth)
+  implementation(libs.firebase.firestore)
+  implementation(libs.play.services.auth)
 }

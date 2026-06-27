@@ -12,7 +12,20 @@
                     "package_name": "com.agrogoat.app"
                 }
             },
-            "oauth_client": [],
+            "oauth_client": [
+                {
+                    "client_id": "1034459376734-keum9ske6imltpjd5tn643gdmufkjq58.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "com.agrogoat.app",
+                        "certificate_hash": "19bae01c2766c6a1da4d6268c8cfa70aed6bdd80"
+                    }
+                },
+                {
+                    "client_id": "1034459376734-anv9vdrivbo7d2a72299h7il2ljvhdae.apps.googleusercontent.com",
+                    "client_type": 3
+                }
+            ],
             "api_key": [
                 {
                     "current_key": "AIzaSyD27uN4iA2oUPTcDHdasJ8HnWtnKzzq4X0"
@@ -20,7 +33,12 @@
             ],
             "services": {
                 "appinvite_service": {
-                    "other_platform_oauth_client": []
+                    "other_platform_oauth_client": [
+                        {
+                            "client_id": "1034459376734-anv9vdrivbo7d2a72299h7il2ljvhdae.apps.googleusercontent.com",
+                            "client_type": 3
+                        }
+                    ]
                 }
             }
         }

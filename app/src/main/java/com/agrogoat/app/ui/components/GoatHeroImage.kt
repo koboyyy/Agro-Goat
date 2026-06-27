@@ -18,6 +18,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.agrogoat.app.ui.components.GoatImage
 
 @Composable
 fun GoatHeroImage(
@@ -26,15 +27,17 @@ fun GoatHeroImage(
     isFavorite:Boolean,
     onBack:()->Unit,
     onFavorite:()->Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    imageUri: String? = null
 ){
     Box(
         modifier = modifier
             .fillMaxWidth()
             .fillMaxHeight(.42f)
     ){
-        Image(
-            painter = painterResource(imageRes),
+        GoatImage(
+            imageUri = imageUri,
+            defaultImageRes = imageRes,
             contentDescription = contentDescription,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
