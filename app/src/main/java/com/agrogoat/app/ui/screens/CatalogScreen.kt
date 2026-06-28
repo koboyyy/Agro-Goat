@@ -89,10 +89,26 @@ fun CatalogScreen(
     var selectedGoat by remember { mutableStateOf<GoatItem?>(null) }
 
     // Booking Form Input States
-    var buyerName by remember { mutableStateOf("Siti zahfia") }
-    var buyerPhone by remember { mutableStateOf("0822-6883-0122") }
-    var buyerEmail by remember { mutableStateOf("sitizahfia@gmail.com") }
+    val currentUserName by viewModel.userName.collectAsState()
+    val currentUserPhone by viewModel.userPhone.collectAsState()
+    val currentUserEmail by viewModel.userEmail.collectAsState()
+
+    var buyerName by remember { mutableStateOf("") }
+    var buyerPhone by remember { mutableStateOf("") }
+    var buyerEmail by remember { mutableStateOf("") }
     var buyerNotes by remember { mutableStateOf("") }
+
+    LaunchedEffect(currentUserName, currentUserPhone, currentUserEmail) {
+        if (buyerName.isBlank() && currentUserName.isNotEmpty()) {
+            buyerName = currentUserName
+        }
+        if (buyerPhone.isBlank() && currentUserPhone.isNotEmpty()) {
+            buyerPhone = currentUserPhone
+        }
+        if (buyerEmail.isBlank() && currentUserEmail.isNotEmpty()) {
+            buyerEmail = currentUserEmail
+        }
+    }
 
     // Date & Time selection states
     var selectedDate by remember { mutableStateOf("20 Juni 2026") }

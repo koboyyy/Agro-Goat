@@ -35,7 +35,11 @@ import kotlinx.coroutines.launch
 
 enum class HomeSubScreen {
     HOME,
-    DETAIL
+    DETAIL,
+    BOOKING_STEP1,
+    BOOKING_STEP2,
+    BOOKING_STEP3,
+    BOOKING_SUCCESS
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +57,32 @@ fun HomeScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedHomeCategory by viewModel.selectedHomeCategory.collectAsState()
     val currentTab by viewModel.currentTab.collectAsState()
+
+    // Booking Form Input States
+    val currentUserName by viewModel.userName.collectAsState()
+    val currentUserPhone by viewModel.userPhone.collectAsState()
+    val currentUserEmail by viewModel.userEmail.collectAsState()
+
+    var buyerName by remember { mutableStateOf("") }
+    var buyerPhone by remember { mutableStateOf("") }
+    var buyerEmail by remember { mutableStateOf("") }
+    var buyerNotes by remember { mutableStateOf("") }
+
+    LaunchedEffect(currentUserName, currentUserPhone, currentUserEmail) {
+        if (buyerName.isBlank() && currentUserName.isNotEmpty()) {
+            buyerName = currentUserName
+        }
+        if (buyerPhone.isBlank() && currentUserPhone.isNotEmpty()) {
+            buyerPhone = currentUserPhone
+        }
+        if (buyerEmail.isBlank() && currentUserEmail.isNotEmpty()) {
+            buyerEmail = currentUserEmail
+        }
+    }
+
+    var selectedDate by remember { mutableStateOf("20 Juni 2026") }
+    var selectedTimeSlot by remember { mutableStateOf("09.00 - 10.00") }
+    var bookingCode by remember { mutableStateOf("") }
 
     // Gender filter state
     var selectedGenderFilter by remember { mutableStateOf("Semua") }
@@ -308,46 +338,135 @@ fun HomeScreen(
         }
 
         HomeSubScreen.DETAIL -> {
-
             selectedGoat?.let {
-
                 GoatDetailView(
-
                     goat = it,
-
                     onBack = {
-
-                        currentSubScreen =
-                            HomeSubScreen.HOME
-
+                        currentSubScreen = HomeSubScreen.HOME
                     },
-
                     onToggleFav = {
-
-                        viewModel.toggleFavorite(
-                            it.id
-                        )
-
+                        viewModel.toggleFavorite(it.id)
                     },
-
                     onChat = {
                         val emailTujuan = if (!it.sellerEmail.isNullOrBlank()) it.sellerEmail else "admin@agrogoat.com"
                         viewModel.startChatWith(emailTujuan)
                         currentSubScreen = HomeSubScreen.HOME
                     },
-
                     onOrder = {
-
-                        viewModel.setTab(
-                            AppTab.KATALOG
-                        )
-
+                        currentSubScreen = HomeSubScreen.BOOKING_STEP1
                     }
-
                 )
-
             }
+        }
 
+        HomeSubScreen.BOOKING_STEP1 -> {
+            selectedGoat?.let { goat ->
+                BookingStep1View(
+                    goat = goat,
+                    name = buyerName,
+                    onNameChange = { buyerName = it },
+                    phone = buyerPhone,
+                    onPhoneChange = { buyerPhone = it },
+                    email = buyerEmail,
+                    onEmailChange = { buyerEmail = it },
+                    notes = buyerNotes,
+                    onNotesChange = { buyerNotes = it },
+                    onBack = { currentSubScreen = HomeSubScreen.DETAIL },
+                    onNext = {
+                        if (buyerName.isBlank() || buyerPhone.isBlank()) {
+                            Toast.makeText(context, "Nama Lengkap dan Nomor HP harus diisi!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            currentSubScreen = HomeSubScreen.BOOKING_STEP2
+                        }
+                    }
+                )
+            }
+        }
+
+        HomeSubScreen.BOOKING_STEP2 -> {
+            selectedGoat?.let { goat ->
+                BookingStep2View(
+                    selectedDate = selectedDate,
+                    onDateClick = {
+                        val calendar = java.util.Calendar.getInstance()
+                        val datePickerDialog = android.app.DatePickerDialog(
+                            context,
+                            { _, year, month, dayOfMonth ->
+                                val cal = java.util.Calendar.getInstance().apply {
+                                    set(java.util.Calendar.YEAR, year)
+                                    set(java.util.Calendar.MONTH, month)
+                                    set(java.util.Calendar.DAY_OF_MONTH, dayOfMonth)
+                                }
+                                val sdf = java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale("id", "ID"))
+                                selectedDate = sdf.format(cal.time)
+                            },
+                            2026, 5, 20
+                        )
+                        datePickerDialog.show()
+                    },
+                    selectedTimeSlot = selectedTimeSlot,
+                    onTimeSlotSelect = { selectedTimeSlot = it },
+                    onBack = { currentSubScreen = HomeSubScreen.BOOKING_STEP1 },
+                    onNext = { currentSubScreen = HomeSubScreen.BOOKING_STEP3 }
+                )
+            }
+        }
+
+        HomeSubScreen.BOOKING_STEP3 -> {
+            selectedGoat?.let { goat ->
+                BookingStep3View(
+                    goat = goat,
+                    name = buyerName,
+                    phone = buyerPhone,
+                    email = buyerEmail,
+                    date = selectedDate,
+                    timeSlot = selectedTimeSlot,
+                    notes = buyerNotes,
+                    onBack = { currentSubScreen = HomeSubScreen.BOOKING_STEP2 },
+                    onNext = {
+                        viewModel.createOrder(
+                            goat = goat,
+                            targetWeight = goat.weight,
+                            buyerName = buyerName,
+                            buyerPhone = buyerPhone,
+                            buyerEmail = buyerEmail,
+                            buyerNotes = buyerNotes,
+                            bookingDate = selectedDate,
+                            bookingTimeSlot = selectedTimeSlot
+                        )
+                        
+                        val formattedDate = try {
+                            val sdfInput = java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale("id", "ID"))
+                            val dateObj = sdfInput.parse(selectedDate) ?: java.util.Date()
+                            val sdfOutput = java.text.SimpleDateFormat("ddMMyy", java.util.Locale.getDefault())
+                            sdfOutput.format(dateObj)
+                        } catch (e: Exception) {
+                            "260620"
+                        }
+                        bookingCode = "AG-$formattedDate-001"
+                        currentSubScreen = HomeSubScreen.BOOKING_SUCCESS
+                    }
+                )
+            }
+        }
+
+        HomeSubScreen.BOOKING_SUCCESS -> {
+            val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+            BookingSuccessView(
+                bookingCode = bookingCode,
+                onCopyCode = {
+                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(bookingCode))
+                    Toast.makeText(context, "Kode Booking disalin!", Toast.LENGTH_SHORT).show()
+                },
+                onViewOrders = {
+                    currentSubScreen = HomeSubScreen.HOME
+                    viewModel.setTab(AppTab.PESANAN)
+                },
+                onBackToHome = {
+                    currentSubScreen = HomeSubScreen.HOME
+                    viewModel.setTab(AppTab.BERANDA)
+                }
+            )
         }
     }
 
