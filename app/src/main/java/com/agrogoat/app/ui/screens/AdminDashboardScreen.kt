@@ -1027,75 +1027,21 @@ fun AdminJualTab(
             }
         )
     } else {
-        val dbGoats by viewModel.myGoats.collectAsState()
+        // Menggunakan data langsung dari ViewModel (Firestore)
+        val goatsList by viewModel.myGoats.collectAsState()
         val context = LocalContext.current
-
-        // 1. Seed mock data if database is empty to match screenshots
-        val mockGoats = remember {
-            listOf(
-                GoatItem(
-                    id = "mock_goat_1",
-                    name = "Si Belang #001",
-                    category = GoatCategory.ETAWA,
-                    gender = "Jantan",
-                    weight = 45,
-                    age = 1.5,
-                    price = 3500000,
-                    description = "Kambing Etawa unggulan dengan corak belang.",
-                    isAvailable = true
-                ),
-                GoatItem(
-                    id = "mock_goat_2",
-                    name = "Sang Juara #005",
-                    category = GoatCategory.POTONG,
-                    gender = "Jantan",
-                    weight = 60,
-                    age = 2.0,
-                    price = 5200000,
-                    description = "Kambing Boer super siap potong.",
-                    isAvailable = true
-                ),
-                GoatItem(
-                    id = "mock_goat_3",
-                    name = "Melati #025",
-                    category = GoatCategory.PERAH,
-                    gender = "Betina",
-                    weight = 38,
-                    age = 1.2,
-                    price = 2800000,
-                    description = "Kambing Kacang betina.",
-                    isAvailable = false
-                ),
-                GoatItem(
-                    id = "mock_goat_4",
-                    name = "Raja Hutan #022",
-                    category = GoatCategory.ETAWA,
-                    gender = "Jantan",
-                    weight = 55,
-                    age = 2.5,
-                    price = 6000000,
-                    description = "Kambing Etawa kontes.",
-                    isAvailable = true
-                )
-            )
-        }
-
-        var localMockGoats by remember { mutableStateOf(mockGoats) }
-        val goatsList = remember(dbGoats, localMockGoats) {
-            if (dbGoats.isEmpty()) localMockGoats else dbGoats
-        }
 
         // Local search and filter states
         var searchQuery by remember { mutableStateOf("") }
         var isSearchingActive by remember { mutableStateOf(false) }
-        var selectedFilterTab by remember { mutableStateOf(0) } // 0 = Semua, 1 = Tersedia, 2 = Terjual
+        var selectedFilterTab by remember { mutableStateOf(0) }
 
-        // Calculations for status metrics
+        // Calculations untuk statistik
         val totalCount = goatsList.size
         val availableCount = goatsList.count { it.isAvailable }
         val soldCount = goatsList.count { !it.isAvailable }
 
-        // Filter the display list
+        // Filter daftar ternak
         val filteredGoatsList = remember(goatsList, searchQuery, selectedFilterTab) {
             goatsList.filter { goat ->
                 val matchesSearch = searchQuery.isBlank() || goat.name.contains(searchQuery, ignoreCase = true)
@@ -1156,7 +1102,7 @@ fun AdminJualTab(
                                     .size(40.dp)
                                     .clip(CircleShape)
                                     .background(Color.White)
-                                    .clickable { 
+                                    .clickable {
                                         isSearchingActive = !isSearchingActive
                                         if (!isSearchingActive) searchQuery = ""
                                     },
@@ -1200,20 +1146,16 @@ fun AdminJualTab(
                     }
                 }
             },
-            containerColor = Color(0xFFF5F6F5), // Clean off-white background matching the mockup
+            containerColor = Color(0xFFF5F6F5),
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { isAddingGoat = true },
                     containerColor = Color(0xFF2E7D32),
                     contentColor = Color.White,
                     shape = CircleShape,
-                    modifier = Modifier.padding(bottom = 80.dp) // Offset above navigation bar
+                    modifier = Modifier.padding(bottom = 80.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Tambah Stok",
-                        modifier = Modifier.size(28.dp)
-                    )
+                    Icon(Icons.Default.Add, contentDescription = "Tambah Stok")
                 }
             }
         ) { innerPadding ->
@@ -1224,7 +1166,7 @@ fun AdminJualTab(
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 1. STATS METRIC CARDS (Three white cards in a row)
+                // 1. STATS METRIC CARDS (Langsung dari goatsList)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1339,44 +1281,28 @@ fun AdminJualTab(
                 }
 
                 // 3. STOCK ITEMS LIST
-                if (filteredGoatsList.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
+                if (goatsList.isEmpty()) {
+                    // Tampilan saat benar-benar tidak ada data
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "Tidak ada ternak yang cocok.",
+                            text = "Data stok saat ini belum tersedia.",
                             color = Color.Gray,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = 14.sp
                         )
                     }
                 } else {
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 90.dp) // Spacer for bottom navigation
+                        contentPadding = PaddingValues(bottom = 90.dp)
                     ) {
                         items(filteredGoatsList) { goat ->
                             StockItemRowCard(
                                 goat = goat,
                                 onEditClick = { onEditClick(goat) },
                                 onToggleStatus = {
-                                    val newAvailableState = !goat.isAvailable
-                                    if (dbGoats.isEmpty()) {
-                                        // Update local mock list
-                                        localMockGoats = localMockGoats.map {
-                                            if (it.id == goat.id) it.copy(isAvailable = newAvailableState) else it
-                                        }
-                                        Toast.makeText(context, "Status ${goat.name} diubah!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        // Update in Firestore
-                                        viewModel.updateGoatItem(goat.copy(isAvailable = newAvailableState))
-                                    }
+                                    // Logika update murni ke Firestore
+                                    viewModel.updateGoatItem(goat.copy(isAvailable = !goat.isAvailable))
                                 }
                             )
                         }
