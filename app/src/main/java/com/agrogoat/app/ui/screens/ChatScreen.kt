@@ -605,28 +605,6 @@ fun ChatInput(
                         singleLine = true
                     )
                 }
-                
-                Icon(
-                    imageVector = Icons.Outlined.AttachFile,
-                    contentDescription = "Lampiran",
-                    tint = Color.Gray,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable { }
-                        .padding(horizontal = 2.dp)
-                )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                Icon(
-                    imageVector = Icons.Outlined.PhotoCamera,
-                    contentDescription = "Kamera",
-                    tint = Color.Gray,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable { }
-                        .padding(horizontal = 2.dp)
-                )
             }
 
             val isTyping = textInput.isNotBlank()

@@ -104,6 +104,8 @@ class AgroGoatViewModel : ViewModel() {
     private val _activePartnerLastSeen = MutableStateFlow("")
     val activePartnerLastSeen: StateFlow<String> = _activePartnerLastSeen.asStateFlow()
 
+    private val _serverTimeOffset = MutableStateFlow(0L)
+
     val chatInboxRooms = combine(_chatRooms, _usersProfiles, _userRole, _userEmail) { chatRooms, profiles, role, userEmail ->
         val currentUid = auth.currentUser?.uid ?: ""
         if (role == "Penjual") {
@@ -232,6 +234,10 @@ class AgroGoatViewModel : ViewModel() {
     private var chatRoomsListener: ListenerRegistration? = null
     private var usersProfilesListener: ListenerRegistration? = null
     private var activePartnerPresenceListener: ListenerRegistration? = null
+    private var heartbeatJob: kotlinx.coroutines.Job? = null
+    private var partnerPresenceTickerJob: kotlinx.coroutines.Job? = null
+    private var activePartnerLastSeenMillis: Long? = null
+    private var isPartnerOnlineRaw: Boolean = false
 
     private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
         val user = firebaseAuth.currentUser
@@ -250,7 +256,7 @@ class AgroGoatViewModel : ViewModel() {
 
     private fun setupFirestoreListeners(uid: String) {
         clearListeners()
-        updateUserPresence(true)
+        onAppForeground()
 
         // 1. Profil Pengguna (users/{uid})
         profileListener = db.collection("users").document(uid).addSnapshotListener { snapshot, e ->
@@ -260,12 +266,17 @@ class AgroGoatViewModel : ViewModel() {
             _userBalance.value = snapshot.getLong("balance") ?: 0L
             val role = snapshot.getString("role") ?: "Pedagang"
             _userRole.value = role
-            val email = snapshot.getString("email") ?: ""
+            val email = (snapshot.getString("email") ?: "").trim().lowercase(java.util.Locale.ROOT)
             _userEmail.value = email
             _userPhone.value = snapshot.getString("phone") ?: ""
             _userFarmName.value = snapshot.getString("farmName") ?: ""
             _userBio.value = snapshot.getString("bio") ?: ""
             _userPhotoUrl.value = snapshot.getString("photoUrl") ?: ""
+            
+            val serverTs = snapshot.getTimestamp("lastSeenTimestamp")
+            if (serverTs != null && !snapshot.metadata.hasPendingWrites()) {
+                _serverTimeOffset.value = serverTs.toDate().time - System.currentTimeMillis()
+            }
             
             setupMyGoatsListener(uid, email)
             setupChatRoomsListener(uid, email)
@@ -352,8 +363,8 @@ class AgroGoatViewModel : ViewModel() {
             .whereArrayContains("participants", email)
             .addSnapshotListener { snapshot, _ ->
                 snapshot?.let {
-                    _messages.value = it.documents.mapNotNull { doc -> mapToMessageItem(doc.data ?: emptyMap()) }
-                        .sortedWith(compareBy({ it.timestamp }, { it.id }))
+                    _messages.value = it.documents.mapNotNull { doc -> mapToMessageItem(doc.data ?: emptyMap(), doc.metadata.hasPendingWrites()) }
+                        .sortedWith(compareBy({ it.serverTimestamp ?: System.currentTimeMillis() }, { it.id }))
                 }
             }
     }
@@ -385,6 +396,7 @@ class AgroGoatViewModel : ViewModel() {
     }
 
     fun register(email: String, pass: String, name: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        val email = email.trim().lowercase(java.util.Locale.ROOT)
         auth.createUserWithEmailAndPassword(email, pass)
             .addOnSuccessListener { result ->
                 val uid = result.user?.uid ?: return@addOnSuccessListener
@@ -456,6 +468,7 @@ class AgroGoatViewModel : ViewModel() {
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
+        val email = email.trim().lowercase(java.util.Locale.ROOT)
         val uid = auth.currentUser?.uid ?: return
         val updates = mutableMapOf<String, Any>()
         updates["name"] = name
@@ -528,7 +541,7 @@ class AgroGoatViewModel : ViewModel() {
         _userAddress.value = address
         _userBalance.value = balance
         _userRole.value = role
-        _userEmail.value = email
+        _userEmail.value = email.trim().lowercase(java.util.Locale.ROOT)
         _userPhone.value = phone
 
         val uid = auth.currentUser?.uid ?: return
@@ -585,7 +598,7 @@ class AgroGoatViewModel : ViewModel() {
     // --- CHAT SECURITY EXAMPLE ---
     fun sendMessage(content: String, recipientUid: String = "ADMIN_UID") {
         var chatRoom = _selectedChatRoom.value
-        val userEmail = _userEmail.value
+        val userEmail = (auth.currentUser?.email ?: _userEmail.value).trim().lowercase(java.util.Locale.ROOT)
         val uid = auth.currentUser?.uid ?: ""
         if (content.isBlank()) return
 
@@ -665,7 +678,7 @@ class AgroGoatViewModel : ViewModel() {
     }
 
     fun startChatWith(email: String) {
-        val userEmail = _userEmail.value
+        val userEmail = (auth.currentUser?.email ?: _userEmail.value).trim().lowercase(java.util.Locale.ROOT)
         val uid = auth.currentUser?.uid ?: ""
         val roomId = "${userEmail}_${email}".replace(".", "_")
         val existingRoom = chatInboxRooms.value.find { it.id == roomId || it.sellerEmail.equals(email, ignoreCase = true) }
@@ -701,7 +714,7 @@ class AgroGoatViewModel : ViewModel() {
         _selectedChatRoom.value = room
         setActiveChatRoomId(room.id)
         setChatScreenState(ChatScreenState.DETAIL)
-        val userEmail = _userEmail.value
+        val userEmail = (auth.currentUser?.email ?: _userEmail.value).trim().lowercase(java.util.Locale.ROOT)
         val partnerEmail = if (userEmail.equals(room.buyerEmail, ignoreCase = true)) room.sellerEmail else room.buyerEmail
         if (partnerEmail.isNotEmpty()) {
             listenToActivePartnerPresence(partnerEmail)
@@ -714,40 +727,89 @@ class AgroGoatViewModel : ViewModel() {
         stopListeningToActivePartnerPresence()
     }
 
+    fun onAppForeground() {
+        val uid = auth.currentUser?.uid ?: return
+        updateUserPresence(true)
+        
+        heartbeatJob?.cancel()
+        heartbeatJob = viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(30000)
+                updateUserPresence(true)
+            }
+        }
+    }
+
+    fun onAppBackground() {
+        heartbeatJob?.cancel()
+        heartbeatJob = null
+        updateUserPresence(false)
+    }
+
     fun updateUserPresence(isOnline: Boolean) {
-        val email = _userEmail.value
+        val email = _userEmail.value.trim().lowercase(java.util.Locale.ROOT)
         val uid = auth.currentUser?.uid ?: return
         if (email.isEmpty()) return
         
         val timeStr = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")).format(Date())
         val updates = mapOf(
             "isOnline" to isOnline,
-            "lastSeen" to timeStr
+            "lastSeen" to timeStr,
+            "lastSeenMillis" to System.currentTimeMillis()
         )
-        db.collection("users_profiles").document(email).update(updates)
-        db.collection("users").document(uid).update(updates)
+        db.collection("users_profiles").document(email).set(updates, com.google.firebase.firestore.SetOptions.merge())
+        db.collection("users").document(uid).set(updates, com.google.firebase.firestore.SetOptions.merge())
     }
 
     fun listenToActivePartnerPresence(partnerEmail: String) {
+        val partnerEmail = partnerEmail.trim().lowercase(java.util.Locale.ROOT)
         activePartnerPresenceListener?.remove()
+        partnerPresenceTickerJob?.cancel()
         _activePartnerOnline.value = false
         _activePartnerLastSeen.value = ""
+        activePartnerLastSeenMillis = null
+        isPartnerOnlineRaw = false
         if (partnerEmail.isEmpty()) return
 
         activePartnerPresenceListener = db.collection("users_profiles")
             .document(partnerEmail)
             .addSnapshotListener { snapshot, e ->
                 if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
-                _activePartnerOnline.value = snapshot.getBoolean("isOnline") ?: false
+                isPartnerOnlineRaw = snapshot.getBoolean("isOnline") ?: false
                 _activePartnerLastSeen.value = snapshot.getString("lastSeen") ?: ""
+                val serverTs = snapshot.getTimestamp("lastSeenTimestamp")
+                activePartnerLastSeenMillis = serverTs?.toDate()?.time
+                evaluatePartnerPresence()
             }
+
+        partnerPresenceTickerJob = viewModelScope.launch {
+            while (true) {
+                evaluatePartnerPresence()
+                kotlinx.coroutines.delay(10000)
+            }
+        }
+    }
+
+    private fun evaluatePartnerPresence() {
+        val lastSeen = activePartnerLastSeenMillis
+        if (lastSeen == null) {
+            _activePartnerOnline.value = isPartnerOnlineRaw
+        } else {
+            val serverCurrentTime = System.currentTimeMillis() + _serverTimeOffset.value
+            val diff = serverCurrentTime - lastSeen
+            _activePartnerOnline.value = isPartnerOnlineRaw && (diff < 60000)
+        }
     }
 
     fun stopListeningToActivePartnerPresence() {
         activePartnerPresenceListener?.remove()
         activePartnerPresenceListener = null
+        partnerPresenceTickerJob?.cancel()
+        partnerPresenceTickerJob = null
         _activePartnerOnline.value = false
         _activePartnerLastSeen.value = ""
+        activePartnerLastSeenMillis = null
+        isPartnerOnlineRaw = false
     }
 
     fun setActiveChatRoomId(roomId: String?) {
@@ -887,6 +949,8 @@ class AgroGoatViewModel : ViewModel() {
     }
 
     private fun clearListeners() {
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         updateUserPresence(false)
         profileListener?.remove()
         goatsListener?.remove()
@@ -896,7 +960,7 @@ class AgroGoatViewModel : ViewModel() {
         notificationsListener?.remove()
         chatRoomsListener?.remove()
         usersProfilesListener?.remove()
-        activePartnerPresenceListener?.remove()
+        stopListeningToActivePartnerPresence()
     }
 
     private fun resetUserData() {

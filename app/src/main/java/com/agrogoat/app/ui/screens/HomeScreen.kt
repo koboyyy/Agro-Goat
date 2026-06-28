@@ -57,6 +57,8 @@ fun HomeScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedHomeCategory by viewModel.selectedHomeCategory.collectAsState()
     val currentTab by viewModel.currentTab.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
+    val unreadCount = remember(notifications) { notifications.count { !it.isRead } }
 
     // Booking Form Input States
     val currentUserName by viewModel.userName.collectAsState()
@@ -134,6 +136,7 @@ fun HomeScreen(
                     item {
                         AppHeader(
                             userName = userName,
+                            unreadCount = unreadCount,
                             onNotificationClick = {
                                 viewModel.setTab(AppTab.NOTIFIKASI)
                             },

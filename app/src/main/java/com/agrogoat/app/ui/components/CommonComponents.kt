@@ -78,6 +78,7 @@ fun GoatLogo(modifier: Modifier = Modifier) {
 @Composable
 fun AppHeader(
     userName: String,
+    unreadCount: Int,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -149,21 +150,28 @@ fun AppHeader(
                     tint = Color.Black,
                     modifier = Modifier.size(24.dp)
                 )
-                // Red badge
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 6.dp, end = 6.dp)
-                        .size(16.dp)
-                        .background(Color.Red, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "3",
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                if (unreadCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 4.dp, end = 4.dp)
+                            .size(16.dp)
+                            .background(Color.Red, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = unreadCount.toString(),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            style = androidx.compose.ui.text.TextStyle(
+                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                    includeFontPadding = false
+                                )
+                            )
+                        )
+                    }
                 }
             }
 

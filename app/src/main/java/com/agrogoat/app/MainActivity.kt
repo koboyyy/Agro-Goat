@@ -98,6 +98,16 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        viewModel.onAppForeground()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.onAppBackground()
+    }
 }
 
 @Composable
@@ -149,7 +159,7 @@ fun MainAppShell(
                 val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
                 val currentUser = auth.currentUser
                 if (currentUser != null && currentUser.email != null) {
-                    val email = currentUser.email!!
+                    val email = currentUser.email!!.trim().lowercase(java.util.Locale.ROOT)
                     val database = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                     val getTask = database.collection("users_profiles").document(email).get()
                     var attempts = 0

@@ -1,8 +1,9 @@
 package com.agrogoat.app.config
 
+import com.agrogoat.app.BuildConfig
+
 object CloudinaryConfig {
-    // SILAKAN UBAH TIGA KONSTANTA DI BAWAH INI DENGAN DATA AKUN CLOUDINARY ANDA
-    const val CLOUD_NAME = "dqqwmwh41"
-    const val API_KEY = "574458921638915" // Ganti dengan API Key Anda
-    const val API_SECRET = "mx-LY9Q8lDabIS2nh88_HBEcMRs" // Ganti dengan API Secret Anda
+    val CLOUD_NAME = BuildConfig.CLOUDINARY_CLOUD_NAME
+    val API_KEY = BuildConfig.CLOUDINARY_API_KEY
+    val API_SECRET = BuildConfig.CLOUDINARY_API_SECRET
 }

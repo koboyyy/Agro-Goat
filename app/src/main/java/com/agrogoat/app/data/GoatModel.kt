@@ -70,7 +70,8 @@ data class MessageItem(
     val sender: MessageSender,
     val timestamp: String,
     val senderEmail: String = "",
-    val participants: List<String> = emptyList()
+    val participants: List<String> = emptyList(),
+    val serverTimestamp: Long? = null
 )
 
 enum class MessageSender { USER, SYSTEM, BREEDER_ETAWA, BREEDER_POTONG }
@@ -122,19 +123,39 @@ fun mapToGoatItem(map: Map<String, Any?>): GoatItem = GoatItem(
 
 fun MessageItem.toMap(): Map<String, Any?> = mapOf(
     "id" to id, "chatRoomId" to chatRoomId, "content" to content, "sender" to sender.name,
-    "timestamp" to timestamp, "senderEmail" to senderEmail, "participants" to participants
+    "timestamp" to timestamp, "senderEmail" to senderEmail, "participants" to participants,
+    "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
 )
 
 @Suppress("UNCHECKED_CAST")
-fun mapToMessageItem(map: Map<String, Any?>): MessageItem = MessageItem(
-    id = map["id"] as? String ?: UUID.randomUUID().toString(),
-    chatRoomId = map["chatRoomId"] as? String ?: "",
-    content = map["content"] as? String ?: "",
-    sender = try { MessageSender.valueOf(map["sender"] as? String ?: "SYSTEM") } catch(e: Exception) { MessageSender.SYSTEM },
-    timestamp = map["timestamp"] as? String ?: "",
-    senderEmail = map["senderEmail"] as? String ?: "",
-    participants = (map["participants"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-)
+fun mapToMessageItem(map: Map<String, Any?>, isPending: Boolean = false): MessageItem {
+    val firebaseTs = map["serverTimestamp"] as? com.google.firebase.Timestamp
+    val timestampStr = map["timestamp"] as? String ?: ""
+    val serverTime = if (firebaseTs != null) {
+        firebaseTs.toDate().time
+    } else if (isPending) {
+        System.currentTimeMillis()
+    } else {
+        try {
+            val parts = timestampStr.split(":")
+            val hrs = parts.getOrNull(0)?.toLongOrNull() ?: 0L
+            val mins = parts.getOrNull(1)?.toLongOrNull() ?: 0L
+            hrs * 3600000L + mins * 60000L
+        } catch (e: Exception) {
+            0L
+        }
+    }
+    return MessageItem(
+        id = map["id"] as? String ?: UUID.randomUUID().toString(),
+        chatRoomId = map["chatRoomId"] as? String ?: "",
+        content = map["content"] as? String ?: "",
+        sender = try { MessageSender.valueOf(map["sender"] as? String ?: "SYSTEM") } catch(e: Exception) { MessageSender.SYSTEM },
+        timestamp = timestampStr,
+        senderEmail = map["senderEmail"] as? String ?: "",
+        participants = (map["participants"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+        serverTimestamp = serverTime
+    )
+}
 
 fun OrderItem.toMap(): Map<String, Any?> = mapOf(
     "id" to id, "goat" to goat.toMap(), "selectedWeight" to selectedWeight.toLong(),

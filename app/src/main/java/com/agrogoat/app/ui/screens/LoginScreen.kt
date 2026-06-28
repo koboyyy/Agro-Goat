@@ -240,6 +240,7 @@ fun LoginScreen(
     }
 
     suspend fun handleGoogleUserAuthFlow(email: String, name: String, screen: AuthScreen) {
+        val email = email.trim().lowercase(java.util.Locale.ROOT)
         val database = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         val getTask = database.collection("users_profiles").document(email).get()
         var attempts = 0
@@ -827,6 +828,7 @@ fun LoginScreen(
                                     passwordErrorMsg = "Kata sandi tidak boleh kosong"
                                 } else {
                                     coroutineScope.launch {
+                                        val emailInput = emailInput.trim().lowercase(java.util.Locale.ROOT)
                                         isLoading = true
                                         var finalName = ""
                                         var finalAddress = ""
@@ -1388,6 +1390,7 @@ fun LoginScreen(
                                     Toast.makeText(context, "Anda harus menyetujui Syarat & Ketentuan!", Toast.LENGTH_SHORT).show()
                                 } else {
                                     coroutineScope.launch {
+                                        val emailInput = emailInput.trim().lowercase(java.util.Locale.ROOT)
                                         isLoading = true
                                         try {
                                             val auth = FirebaseAuth.getInstance()
@@ -1799,7 +1802,7 @@ fun LoginScreen(
                                     isLoading = true
                                     showRoleSelectionDialog = false
                                     
-                                    val email = profile["email"] as? String ?: ""
+                                    val email = (profile["email"] as? String ?: "").trim().lowercase(java.util.Locale.ROOT)
                                     if (email.isNotEmpty()) {
                                         try {
                                             val database = com.google.firebase.firestore.FirebaseFirestore.getInstance()
