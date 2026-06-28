@@ -144,6 +144,7 @@ fun CatalogScreen(
         selectedLocationFilter
     ) {
         var list = goats.filter { goat ->
+            goat.isAvailable &&
             // Search query match
             (searchQuery.isBlank() || 
              goat.name.contains(searchQuery, ignoreCase = true) || 

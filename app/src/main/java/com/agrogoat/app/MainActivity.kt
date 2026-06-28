@@ -110,12 +110,28 @@ fun MainAppShell(
     
     var isCheckingSession by remember { mutableStateOf(true) }
     var isLoggedIn by remember { mutableStateOf(false) }
+    var lastTab by remember { mutableStateOf(AppTab.BERANDA) }
+
+    LaunchedEffect(currentTab) {
+        if (currentTab != AppTab.LACAK_PESANAN && 
+            currentTab != AppTab.PEMBAYARAN && 
+            currentTab != AppTab.NOTIFIKASI && 
+            currentTab != AppTab.INFORMASI_AKUN && 
+            currentTab != AppTab.PENGATURAN && 
+            currentTab != AppTab.UBAH_KATA_SANDI) {
+            lastTab = currentTab
+        }
+    }
 
     if (isLoggedIn && currentTab != AppTab.BERANDA) {
         androidx.activity.compose.BackHandler {
             when (currentTab) {
                 AppTab.LACAK_PESANAN -> viewModel.setTab(AppTab.PESANAN)
                 AppTab.PEMBAYARAN -> viewModel.setTab(AppTab.KATALOG)
+                AppTab.NOTIFIKASI -> viewModel.setTab(lastTab)
+                AppTab.INFORMASI_AKUN -> viewModel.setTab(AppTab.PROFIL)
+                AppTab.PENGATURAN -> viewModel.setTab(AppTab.PROFIL)
+                AppTab.UBAH_KATA_SANDI -> viewModel.setTab(AppTab.PENGATURAN)
                 else -> viewModel.setTab(AppTab.BERANDA)
             }
         }
@@ -240,7 +256,7 @@ fun MainAppShell(
                                 viewModel.setTab(AppTab.BERANDA)
                             }
                         )
-                        AppTab.NOTIFIKASI -> NotificationScreen(viewModel)
+                        AppTab.NOTIFIKASI -> NotificationScreen(viewModel, onBack = { viewModel.setTab(lastTab) })
                         AppTab.PEMBAYARAN -> PaymentScreen(viewModel)
                         AppTab.LACAK_PESANAN -> {
                             val orderToTrack by viewModel.selectedOrderForTracking.collectAsState()
@@ -251,6 +267,9 @@ fun MainAppShell(
                                 )
                             }
                         }
+                        AppTab.INFORMASI_AKUN -> AccountInfoScreen(viewModel, onBack = { viewModel.setTab(AppTab.PROFIL) })
+                        AppTab.PENGATURAN -> SettingsScreen(viewModel, onBack = { viewModel.setTab(AppTab.PROFIL) })
+                        AppTab.UBAH_KATA_SANDI -> ChangePasswordScreen(viewModel, onBack = { viewModel.setTab(AppTab.PENGATURAN) })
                     }
                 }
 
@@ -259,6 +278,9 @@ fun MainAppShell(
                 val hideNavBar = currentTab == AppTab.LACAK_PESANAN ||
                         currentTab == AppTab.NOTIFIKASI ||
                         currentTab == AppTab.PEMBAYARAN ||
+                        currentTab == AppTab.INFORMASI_AKUN ||
+                        currentTab == AppTab.PENGATURAN ||
+                        currentTab == AppTab.UBAH_KATA_SANDI ||
                         hideBottomBarFromVM
 
                 if (!hideNavBar) {

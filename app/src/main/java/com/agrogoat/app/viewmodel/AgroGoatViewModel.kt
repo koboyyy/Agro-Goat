@@ -23,7 +23,7 @@ import java.util.*
 enum class ChatScreenState { LIST, DETAIL }
 
 enum class AppTab {
-    BERANDA, KATALOG, CHAT, PESANAN, PROFIL, LACAK_PESANAN, NOTIFIKASI, PEMBAYARAN
+    BERANDA, KATALOG, CHAT, PESANAN, PROFIL, LACAK_PESANAN, NOTIFIKASI, PEMBAYARAN, INFORMASI_AKUN, PENGATURAN, UBAH_KATA_SANDI
 }
 
 enum class CatalogSort {
@@ -364,7 +364,7 @@ class AgroGoatViewModel : ViewModel() {
             .addSnapshotListener { snapshot, _ ->
                 snapshot?.let {
                     val allOrders = it.documents.mapNotNull { doc -> mapToOrderItem(doc.data ?: emptyMap()) }
-                    if (role.equals("Penjual", ignoreCase = true) || role.equals("Pedagang", ignoreCase = true)) {
+                    if (role.equals("Penjual", ignoreCase = true)) {
                         _orders.value = allOrders.filter { order ->
                             order.goat.sellerUid == uid || (order.goat.sellerEmail != null && order.goat.sellerEmail.equals(email, ignoreCase = true))
                         }.sortedByDescending { it.orderDate }
@@ -447,6 +447,80 @@ class AgroGoatViewModel : ViewModel() {
         db.collection("users").document(uid).update(updates)
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e -> onFailure(e.message ?: "Gagal memperbarui profil") }
+    }
+
+    fun updateAccountInfo(
+        name: String,
+        email: String,
+        phone: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val uid = auth.currentUser?.uid ?: return
+        val updates = mutableMapOf<String, Any>()
+        updates["name"] = name
+        updates["email"] = email
+        updates["phone"] = phone
+        
+        // Also update Firebase Auth email if changed
+        val user = auth.currentUser
+        if (user != null && email.isNotBlank() && !email.equals(user.email, ignoreCase = true)) {
+            user.updateEmail(email)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        db.collection("users").document(uid).update(updates)
+                            .addOnSuccessListener {
+                                db.collection("users_profiles").document(email).set(updates, com.google.firebase.firestore.SetOptions.merge())
+                                _userName.value = name
+                                _userEmail.value = email
+                                _userPhone.value = phone
+                                onSuccess()
+                            }
+                            .addOnFailureListener { e ->
+                                onFailure(e.message ?: "Gagal memperbarui Firestore")
+                            }
+                    } else {
+                        onFailure(task.exception?.message ?: "Gagal memperbarui email di Firebase Auth")
+                    }
+                }
+        } else {
+            db.collection("users").document(uid).update(updates)
+                .addOnSuccessListener {
+                    val emailKey = user?.email ?: email
+                    db.collection("users_profiles").document(emailKey).set(updates, com.google.firebase.firestore.SetOptions.merge())
+                    _userName.value = name
+                    _userPhone.value = phone
+                    onSuccess()
+                }
+                .addOnFailureListener { e ->
+                    onFailure(e.message ?: "Gagal memperbarui profil")
+                }
+        }
+    }
+
+    fun changeUserPassword(
+        oldPass: String,
+        newPass: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val user = auth.currentUser ?: return onFailure("Sesi pengguna tidak valid")
+        val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(user.email ?: "", oldPass)
+        user.reauthenticate(credential)
+            .addOnCompleteListener { reauthTask ->
+                if (reauthTask.isSuccessful) {
+                    user.updatePassword(newPass)
+                        .addOnCompleteListener { updateTask ->
+                            if (updateTask.isSuccessful) {
+                                onSuccess()
+                            } else {
+                                onFailure(updateTask.exception?.message ?: "Gagal mengubah kata sandi")
+                            }
+                        }
+                } else {
+                    onFailure(reauthTask.exception?.message ?: "Kata sandi lama tidak sesuai")
+                }
+            }
     }
 
     fun setUserProfile(name: String, address: String, balance: Long, role: String, email: String, phone: String) {

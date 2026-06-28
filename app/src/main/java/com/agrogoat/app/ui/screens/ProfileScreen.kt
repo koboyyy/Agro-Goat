@@ -132,9 +132,7 @@ fun ProfileScreen(
                         )
                     },
                     onClick = {
-                        inputName = userName
-                        inputAddress = userAddress
-                        showEditDialog = true
+                        viewModel.setTab(AppTab.INFORMASI_AKUN)
                     }
                 )
 
@@ -170,14 +168,19 @@ fun ProfileScreen(
                     }
                 )
 
-                // Item 4: Pengaturan (No icon, aligned text)
+                // Item 4: Pengaturan
                 ProfileMenuCard(
                     title = "Pengaturan",
                     icon = {
-                        Spacer(modifier = Modifier.width(24.dp))
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = null,
+                            tint = Color(0xFF212224),
+                            modifier = Modifier.size(24.dp)
+                        )
                     },
                     onClick = {
-                        Toast.makeText(context, "Fitur Pengaturan akan segera hadir!", Toast.LENGTH_SHORT).show()
+                        viewModel.setTab(AppTab.PENGATURAN)
                     }
                 )
             }

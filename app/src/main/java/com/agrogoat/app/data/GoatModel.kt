@@ -24,7 +24,8 @@ data class GoatItem(
     @DrawableRes val imageRes: Int? = null,
     val imageUri: String? = null,
     val sellerEmail: String? = null,
-    val sellerUid: String? = null
+    val sellerUid: String? = null,
+    val isAvailable: Boolean = true
 )
 
 data class ChatRoom(
@@ -91,7 +92,8 @@ fun GoatItem.toMap(): Map<String, Any?> = mapOf(
     "id" to id, "name" to name, "category" to category.name, "gender" to gender,
     "weight" to weight.toLong(), "age" to age, "price" to price, "location" to location,
     "description" to description, "isNew" to isNew, "isFavorite" to isFavorite,
-    "imageRes" to imageRes?.toLong(), "imageUri" to imageUri, "sellerEmail" to sellerEmail, "sellerUid" to sellerUid
+    "imageRes" to imageRes?.toLong(), "imageUri" to imageUri, "sellerEmail" to sellerEmail, "sellerUid" to sellerUid,
+    "isAvailable" to isAvailable
 )
 
 @Suppress("UNCHECKED_CAST")
@@ -114,7 +116,8 @@ fun mapToGoatItem(map: Map<String, Any?>): GoatItem = GoatItem(
     imageRes = (map["imageRes"] as? Long)?.toInt(),
     imageUri = map["imageUri"] as? String,
     sellerEmail = map["sellerEmail"] as? String,
-    sellerUid = map["sellerUid"] as? String
+    sellerUid = map["sellerUid"] as? String,
+    isAvailable = map["isAvailable"] as? Boolean ?: true
 )
 
 fun MessageItem.toMap(): Map<String, Any?> = mapOf(

@@ -1,6 +1,8 @@
 package com.agrogoat.app.ui.screens
 import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -49,6 +51,7 @@ fun OrdersScreen(
     viewModel: AgroGoatViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val orders by viewModel.orders.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -61,7 +64,8 @@ fun OrdersScreen(
              order.id.contains(searchQuery, ignoreCase = true)) &&
             when (selectedTabFilter) {
                 "Semua" -> true
-                "Dikonfirmasi" -> order.status == OrderStatus.PACKING || order.status == OrderStatus.PENDING_PAYMENT
+                "Menunggu Konfirmasi" -> order.status == OrderStatus.PENDING_PAYMENT
+                "Dikonfirmasi" -> order.status == OrderStatus.PACKING
                 "Siap diambil" -> order.status == OrderStatus.SHIPPING
                 "Selesai" -> order.status == OrderStatus.COMPLETED
                 else -> true
@@ -169,7 +173,7 @@ fun OrdersScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val tabOptions = listOf("Semua", "Dikonfirmasi", "Siap diambil", "Selesai")
+                val tabOptions = listOf("Semua", "Menunggu Konfirmasi", "Dikonfirmasi", "Siap diambil", "Selesai")
                 items(tabOptions) { tab ->
                     val isSelected = selectedTabFilter == tab
                     val selectedBgColor = when (tab) {
@@ -227,6 +231,10 @@ fun OrdersScreen(
                             },
                             onContactSellerClick = {
                                 viewModel.setTab(AppTab.CHAT)
+                            },
+                            onConfirmPickup = {
+                                viewModel.db.collection("orders").document(order.id).update("status", OrderStatus.COMPLETED.name)
+                                Toast.makeText(context, "Pesanan selesai diambil!", Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -285,6 +293,7 @@ fun OrderItemCard(
     onCardClick: () -> Unit,
     onActionClick: () -> Unit,
     onContactSellerClick: () -> Unit,
+    onConfirmPickup: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val picBgColor = when (order.goat.category) {
@@ -440,7 +449,8 @@ fun OrderItemCard(
                     if (order.status == OrderStatus.SHIPPING) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             OutlinedButton(
                                 onClick = onContactSellerClick,
@@ -453,6 +463,20 @@ fun OrderItemCard(
                                     text = "Hubungi Penjual",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp
+                                )
+                            }
+                            
+                            Button(
+                                onClick = onConfirmPickup,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6E35)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(
+                                    text = "Kambing Sudah Diambil",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = Color.White
                                 )
                             }
                         }
@@ -735,13 +759,17 @@ fun BottomInfoCard(tab: String, count: Int) {
             val titleText = when (tab) {
                 "Siap diambil" -> "Hanya $countText siap diambil"
                 "Selesai" -> "Hanya $countText selesai"
-                else -> "Hanya $countText dikonfirmasi"
+                "Menunggu Konfirmasi" -> "Hanya $countText menunggu konfirmasi"
+                "Dikonfirmasi" -> "Hanya $countText dikonfirmasi"
+                else -> "Hanya $countText"
             }
 
             val subtitleText = when (tab) {
                 "Siap diambil" -> "Segera ambil pesanan Anda!"
                 "Selesai" -> "Terima kasih telah berbelanja!"
-                else -> "Peternak sedang menyiapkan pesanan Anda."
+                "Menunggu Konfirmasi" -> "Peternak sedang memeriksa pesanan Anda."
+                "Dikonfirmasi" -> "Peternak sedang menyiapkan pesanan Anda."
+                else -> "Peternak sedang memproses pesanan Anda."
             }
 
             Text(

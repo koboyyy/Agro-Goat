@@ -83,7 +83,7 @@ fun HomeScreen(
                     goat.location.contains(searchQuery, ignoreCase = true)
             val matchesCategory = selectedHomeCategory == null || goat.category == selectedHomeCategory
             val matchesGender = selectedGenderFilter == "Semua" || goat.gender.equals(selectedGenderFilter, ignoreCase = true)
-            matchesSearch && matchesCategory && matchesGender
+            matchesSearch && matchesCategory && matchesGender && goat.isAvailable
         }
     }
 
