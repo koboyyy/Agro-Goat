@@ -1,4 +1,5 @@
 package com.agrogoat.feature.dashboard.ui
+
 import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.outlined.*
 
@@ -9,9 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.InsertChart
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,14 +28,139 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agrogoat.core.designsystem.components.formatRupiah
+import com.agrogoat.core.shared.AgroGoatViewModel
+import com.agrogoat.core.model.OrderStatus
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminSalesReportScreen(
+    viewModel: AgroGoatViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isYearlyMode by remember { mutableStateOf(false) }
+
+    val allOrders by viewModel.orders.collectAsState()
+    val validOrders = remember(allOrders) {
+        allOrders.filter { it.status != OrderStatus.PENDING_PAYMENT }
+    }
+
+    val currentCalendar = Calendar.getInstance()
+    val currentMonth = currentCalendar.get(Calendar.MONTH) // 0-indexed
+    val currentYear = currentCalendar.get(Calendar.YEAR)
+
+    val monthName = SimpleDateFormat("MMMM yyyy", Locale("id", "ID")).format(currentCalendar.time)
+
+    // Parse order dates: "dd MMM yyyy, HH:mm"
+    val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+
+    val currentMonthOrders = remember(validOrders) {
+        validOrders.filter {
+            try {
+                val date = sdf.parse(it.orderDate)
+                if (date != null) {
+                    val cal = Calendar.getInstance().apply { time = date }
+                    cal.get(Calendar.MONTH) == currentMonth && cal.get(Calendar.YEAR) == currentYear
+                } else false
+            } catch (e: Exception) { false }
+        }
+    }
+
+    val currentYearOrders = remember(validOrders) {
+        validOrders.filter {
+            try {
+                val date = sdf.parse(it.orderDate)
+                if (date != null) {
+                    val cal = Calendar.getInstance().apply { time = date }
+                    cal.get(Calendar.YEAR) == currentYear
+                } else false
+            } catch (e: Exception) { false }
+        }
+    }
+
+    val prevYearOrders = remember(validOrders) {
+        validOrders.filter {
+            try {
+                val date = sdf.parse(it.orderDate)
+                if (date != null) {
+                    val cal = Calendar.getInstance().apply { time = date }
+                    cal.get(Calendar.YEAR) == currentYear - 1
+                } else false
+            } catch (e: Exception) { false }
+        }
+    }
+
+    // --- Monthly Stats ---
+    val monthlyRevenue = currentMonthOrders.sumOf { it.totalPrice }
+    val monthlyGoatsSold = currentMonthOrders.size
+    val monthlyAvgPrice = if (monthlyGoatsSold > 0) monthlyRevenue / monthlyGoatsSold else 0L
+
+    val topSellingCategories = remember(currentMonthOrders) {
+        currentMonthOrders.groupBy { it.goat.category.name }
+            .map { (cat, orders) -> cat to orders.size }
+            .sortedByDescending { it.second }
+            .take(3)
+    }
+
+    val maxDays = currentCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val dailyChartPoints = remember(currentMonthOrders) {
+        val points = mutableListOf<Float>()
+        val salesByDay = currentMonthOrders.groupBy { 
+            try {
+                val date = sdf.parse(it.orderDate)
+                if (date != null) {
+                    val cal = Calendar.getInstance().apply { time = date }
+                    cal.get(Calendar.DAY_OF_MONTH)
+                } else 1
+            } catch (e: Exception) { 1 }
+        }.mapValues { it.value.sumOf { o -> o.totalPrice } }
+        
+        val maxSale = salesByDay.values.maxOrNull()?.toFloat() ?: 1f
+        val safeMax = if (maxSale == 0f) 1f else maxSale
+
+        for (i in 1..maxDays) {
+            val dailySale = salesByDay[i]?.toFloat() ?: 0f
+            // Normalizing to 0.15f - 0.85f height range (1.0 is bottom)
+            val normalized = 0.85f - ((dailySale / safeMax) * 0.7f)
+            points.add(normalized)
+        }
+        points
+    }
+
+    // --- Yearly Stats ---
+    val yearlyRevenue = currentYearOrders.sumOf { it.totalPrice }
+    val yearlyTransactions = currentYearOrders.size
+    val yearlyAvgPrice = if (yearlyTransactions > 0) yearlyRevenue / yearlyTransactions else 0L
+
+    val prevYearRevenue = prevYearOrders.sumOf { it.totalPrice }
+    val yearGrowth = if (prevYearRevenue > 0) {
+        ((yearlyRevenue - prevYearRevenue).toFloat() / prevYearRevenue.toFloat() * 100).toInt()
+    } else if (yearlyRevenue > 0) 100 else 0
+
+    val salesByMonth = remember(currentYearOrders) {
+        val map = currentYearOrders.groupBy {
+            try {
+                val date = sdf.parse(it.orderDate)
+                if (date != null) {
+                    val cal = Calendar.getInstance().apply { time = date }
+                    cal.get(Calendar.MONTH)
+                } else 0
+            } catch (e: Exception) { 0 }
+        }.mapValues { it.value.sumOf { o -> o.totalPrice } }
+        
+        (0..11).map { map[it] ?: 0L }
+    }
+    
+    val bestMonthIdx = salesByMonth.withIndex().maxByOrNull { it.value }?.index ?: currentMonth
+    val monthNamesShort = listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
+    val bestMonthName = monthNamesShort[bestMonthIdx]
+    
+    val maxMonthSale = salesByMonth.maxOrNull()?.toFloat() ?: 1f
+    val safeMaxMonth = if (maxMonthSale == 0f) 1f else maxMonthSale
 
     Scaffold(
         topBar = {
@@ -62,7 +186,7 @@ fun AdminSalesReportScreen(
                     }
 
                     Text(
-                        text = if (isYearlyMode) "Laporan Tahun 2026" else "Laporan Penjualan",
+                        text = if (isYearlyMode) "Laporan Tahun $currentYear" else "Laporan Penjualan",
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -72,7 +196,6 @@ fun AdminSalesReportScreen(
                     )
 
                     if (isYearlyMode) {
-                        // "2026 ▼" capsule selector
                         Surface(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
@@ -84,48 +207,15 @@ fun AdminSalesReportScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Text("2026", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("$currentYear", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 Text("▼", color = Color.White, fontSize = 10.sp)
-                            }
-                        }
-                    } else {
-                        // Calendar and Chart Buttons
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconButton(
-                                onClick = {},
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CalendarMonth,
-                                    contentDescription = "Kalender",
-                                    tint = Color(0xFF2E7D32),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {},
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.InsertChart,
-                                    contentDescription = "Grafik",
-                                    tint = Color(0xFF2E7D32),
-                                    modifier = Modifier.size(20.dp)
-                                )
                             }
                         }
                     }
                 }
             }
         },
-        containerColor = Color(0xFF4CAF50) // Premium bright-green backdrop matching screenshots
+        containerColor = Color(0xFF4CAF50) 
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -147,7 +237,6 @@ fun AdminSalesReportScreen(
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Bulan Ini Tab
                     Surface(
                         modifier = Modifier
                             .weight(1f)
@@ -167,7 +256,6 @@ fun AdminSalesReportScreen(
                         )
                     }
 
-                    // Tahun Ini Tab
                     Surface(
                         modifier = Modifier
                             .weight(1f)
@@ -189,7 +277,6 @@ fun AdminSalesReportScreen(
                 }
             }
 
-            // Scrollable Content
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -200,7 +287,6 @@ fun AdminSalesReportScreen(
             ) {
                 if (!isYearlyMode) {
                     // MONTHLY VIEW
-                    // Main Income Banner Card
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -209,7 +295,6 @@ fun AdminSalesReportScreen(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF1B5E20))
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            // Circular design overlay checks
                             Canvas(modifier = Modifier.fillMaxSize()) {
                                 drawCircle(
                                     color = Color.White.copy(alpha = 0.05f),
@@ -230,21 +315,21 @@ fun AdminSalesReportScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = "Total Pendapatan (Juni 2026)",
+                                    text = "Total Pendapatan ($monthName)",
                                     color = Color.White.copy(alpha = 0.75f),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Rp 12.500.000",
+                                    text = formatRupiah(monthlyRevenue),
                                     color = Color.White,
                                     fontSize = 28.sp,
                                     fontWeight = FontWeight.ExtraBold
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "▲ 15% dari bulan lalu • 8 Transaksi",
+                                    text = "Transaksi Bulan Ini: $monthlyGoatsSold",
                                     color = Color.White.copy(alpha = 0.9f),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Normal
@@ -271,7 +356,7 @@ fun AdminSalesReportScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text("Total Terjual", fontSize = 12.sp, color = Color.Gray)
-                                Text("8", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                Text("$monthlyGoatsSold", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                                 Text("Ekor", fontSize = 10.sp, color = Color.Gray)
                             }
                         }
@@ -289,7 +374,12 @@ fun AdminSalesReportScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text("Rata-rata/Ekor", fontSize = 12.sp, color = Color.Gray)
-                                Text("3.8jt", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E88E5))
+                                Text(
+                                    if (monthlyAvgPrice >= 1_000_000) "${monthlyAvgPrice / 1_000_000}jt" else formatRupiah(monthlyAvgPrice),
+                                    fontSize = 22.sp, 
+                                    fontWeight = FontWeight.Bold, 
+                                    color = Color(0xFF1E88E5)
+                                )
                                 Text("Per ekor", fontSize = 10.sp, color = Color.Gray)
                             }
                         }
@@ -325,7 +415,6 @@ fun AdminSalesReportScreen(
                                 )
                             }
 
-                            // Custom Line Graph using Canvas
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -336,72 +425,69 @@ fun AdminSalesReportScreen(
                                     val width = size.width
                                     val height = size.height
 
-                                    // Line points
-                                    val points = listOf(
-                                        Offset(0.08f * width, 0.85f * height),
-                                        Offset(0.25f * width, 0.70f * height),
-                                        Offset(0.42f * width, 0.78f * height),
-                                        Offset(0.58f * width, 0.55f * height),
-                                        Offset(0.75f * width, 0.62f * height),
-                                        Offset(0.92f * width, 0.40f * height),
-                                        Offset(1.08f * width, 0.48f * height),
-                                        Offset(1.25f * width, 0.25f * height)
-                                    )
-
-                                    // Draw background gradient under path
-                                    val fillPath = Path().apply {
-                                        moveTo(points.first().x, height)
-                                        for (point in points) {
-                                            lineTo(point.x, point.y)
+                                    val points = dailyChartPoints.mapIndexed { index, normalizedY ->
+                                        val xPos = if (maxDays > 1) {
+                                            (index.toFloat() / (maxDays - 1).toFloat()) * width
+                                        } else {
+                                            width / 2f
                                         }
-                                        lineTo(points.last().x, height)
-                                        close()
+                                        Offset(xPos, normalizedY * height)
                                     }
-                                    drawPath(
-                                        path = fillPath,
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(Color(0xFFE8F5E9), Color.White)
+
+                                    if (points.isNotEmpty()) {
+                                        val fillPath = Path().apply {
+                                            moveTo(points.first().x, height)
+                                            for (point in points) {
+                                                lineTo(point.x, point.y)
+                                            }
+                                            lineTo(points.last().x, height)
+                                            close()
+                                        }
+                                        drawPath(
+                                            path = fillPath,
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(Color(0xFFE8F5E9), Color.White)
+                                            )
                                         )
-                                    )
 
-                                    // Draw path line
-                                    val strokePath = Path().apply {
-                                        moveTo(points.first().x, points.first().y)
-                                        for (i in 1 until points.size) {
-                                            lineTo(points[i].x, points[i].y)
+                                        val strokePath = Path().apply {
+                                            moveTo(points.first().x, points.first().y)
+                                            for (i in 1 until points.size) {
+                                                lineTo(points[i].x, points[i].y)
+                                            }
                                         }
-                                    }
-                                    drawPath(
-                                        path = strokePath,
-                                        color = Color(0xFF2E7D32),
-                                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-                                    )
+                                        drawPath(
+                                            path = strokePath,
+                                            color = Color(0xFF2E7D32),
+                                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                                        )
 
-                                    // Draw point dots
-                                    for (point in points) {
-                                        if (point.x <= width) {
-                                            drawCircle(
-                                                color = Color(0xFF2E7D32),
-                                                radius = 5.dp.toPx(),
-                                                center = point
-                                            )
-                                            drawCircle(
-                                                color = Color.White,
-                                                radius = 2.5.dp.toPx(),
-                                                center = point
-                                            )
+                                        // Draw point dots for a few selected days (e.g. 1st, 5th, 10th...)
+                                        val displayIndices = listOf(0, 4, 9, 14, 19, 24, maxDays - 1)
+                                        for (i in points.indices) {
+                                            if (i in displayIndices) {
+                                                drawCircle(
+                                                    color = Color(0xFF2E7D32),
+                                                    radius = 4.dp.toPx(),
+                                                    center = points[i]
+                                                )
+                                                drawCircle(
+                                                    color = Color.White,
+                                                    radius = 2.dp.toPx(),
+                                                    center = points[i]
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
 
-                            // X Axis Labels
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                listOf("1 Jun", "5 Jun", "10 Jun", "15 Jun", "20 Jun").forEach { label ->
-                                    Text(label, fontSize = 10.sp, color = Color.Gray)
+                                listOf(1, 5, 10, 15, 20, 25, maxDays).forEach { day ->
+                                    Text("$day", fontSize = 10.sp, color = Color.Gray)
                                 }
                             }
                         }
@@ -423,54 +509,45 @@ fun AdminSalesReportScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Produk Terlaris",
+                                    text = "Kategori Produk Terlaris",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
                                     color = Color.Black
                                 )
-                                Text(
-                                    text = "Lihat Semua →",
-                                    color = Color(0xFF2E7D32),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.clickable {}
-                                )
                             }
 
-                            // Product Items list
-                            listOf(
-                                Pair("1. Kambing Etawa Jantan", "5 Ekor"),
-                                Pair("2. Kambing Boer Betina", "2 Ekor"),
-                                Pair("3. Kambing Kacang Muda", "1 Ekor")
-                            ).forEach { (name, count) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFFF8FAFC))
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = name,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color.DarkGray
-                                    )
-                                    Text(
-                                        text = count,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF2E7D32)
-                                    )
+                            if (topSellingCategories.isEmpty()) {
+                                Text("Belum ada penjualan bulan ini.", color = Color.Gray, fontSize = 13.sp)
+                            } else {
+                                topSellingCategories.forEachIndexed { index, (name, count) ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFFF8FAFC))
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${index + 1}. $name",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color.DarkGray
+                                        )
+                                        Text(
+                                            text = "$count Ekor",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF2E7D32)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 } else {
                     // YEARLY VIEW
-                    // Main Income Banner Card (Yearly)
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -494,7 +571,7 @@ fun AdminSalesReportScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = "TOTAL PENDAPATAN 2026",
+                                    text = "TOTAL PENDAPATAN $currentYear",
                                     color = Color.White.copy(alpha = 0.75f),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
@@ -506,30 +583,15 @@ fun AdminSalesReportScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Rp 142.5jt",
+                                        text = formatRupiah(yearlyRevenue),
                                         color = Color.White,
                                         fontSize = 28.sp,
                                         fontWeight = FontWeight.ExtraBold
                                     )
-
-                                    // Target capsule badge
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color(0xFFFFB300))
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Text(
-                                            text = "🏆 Target Tercapai 118%",
-                                            color = Color.Black,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                    }
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "▲ 45% dari tahun 2025 • 96 Transaksi",
+                                    text = if (yearGrowth >= 0) "▲ $yearGrowth% dari tahun ${currentYear - 1} • $yearlyTransactions Transaksi" else "▼ ${-yearGrowth}% dari tahun ${currentYear - 1} • $yearlyTransactions Transaksi",
                                     color = Color.White.copy(alpha = 0.9f),
                                     fontSize = 11.sp
                                 )
@@ -555,7 +617,7 @@ fun AdminSalesReportScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text("Total", fontSize = 11.sp, color = Color.Gray)
-                                Text("96", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                Text("$yearlyTransactions", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                                 Text("Transaksi", fontSize = 9.sp, color = Color.Gray)
                             }
                         }
@@ -573,7 +635,12 @@ fun AdminSalesReportScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text("Rata-rata", fontSize = 11.sp, color = Color.Gray)
-                                Text("3.6jt", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E88E5))
+                                Text(
+                                    if (yearlyAvgPrice >= 1_000_000) "${yearlyAvgPrice / 1_000_000}jt" else formatRupiah(yearlyAvgPrice),
+                                    fontSize = 18.sp, 
+                                    fontWeight = FontWeight.Bold, 
+                                    color = Color(0xFF1E88E5)
+                                )
                                 Text("Per ekor", fontSize = 9.sp, color = Color.Gray)
                             }
                         }
@@ -591,7 +658,7 @@ fun AdminSalesReportScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text("Bulan", fontSize = 11.sp, color = Color.Gray)
-                                Text("Jun", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF6D00))
+                                Text(bestMonthName, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF6D00))
                                 Text("Terbaik", fontSize = 9.sp, color = Color.Gray)
                             }
                         }
@@ -614,7 +681,6 @@ fun AdminSalesReportScreen(
                                 color = Color.Black
                             )
 
-                            // 12 columns bar representation
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -622,22 +688,11 @@ fun AdminSalesReportScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Bottom
                             ) {
-                                val monthlyData = listOf(
-                                    Triple("Jan", 8f, false),
-                                    Triple("Feb", 10f, false),
-                                    Triple("Mar", 12f, false),
-                                    Triple("Apr", 9f, false),
-                                    Triple("Mei", 14f, false),
-                                    Triple("Jun", 12.5f, true), // Highlighted!
-                                    Triple("Jul", 5f, null),     // Projected (dotted outline)
-                                    Triple("Agu", 6f, null),
-                                    Triple("Sep", 7f, null),
-                                    Triple("Okt", 9f, null),
-                                    Triple("Nov", 11f, null),
-                                    Triple("Des", 12f, null)
-                                )
-
-                                monthlyData.forEach { (month, valK, highlightState) ->
+                                salesByMonth.forEachIndexed { index, valRaw ->
+                                    val valK = valRaw / 1_000_000f // in millions
+                                    val isCurrentMonth = index == currentMonth
+                                    val isFuture = index > currentMonth
+                                    
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.Bottom,
@@ -645,33 +700,24 @@ fun AdminSalesReportScreen(
                                             .weight(1f)
                                             .fillMaxHeight()
                                     ) {
-                                        if (highlightState == true) {
+                                        if (isCurrentMonth && valK > 0) {
                                             Text(
-                                                text = "${valK}jt",
-                                                fontSize = 9.sp,
+                                                text = "${String.format(Locale.US, "%.1f", valK)}jt",
+                                                fontSize = 7.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFF1B5E20),
                                                 modifier = Modifier.padding(bottom = 2.dp)
                                             )
-                                        } else if (highlightState == false) {
-                                            Text(
-                                                text = "${valK.toInt()}jt",
-                                                fontSize = 7.sp,
-                                                color = Color.Gray,
-                                                modifier = Modifier.padding(bottom = 2.dp)
-                                            )
                                         }
 
-                                        // Bar view
-                                        val heightRatio = valK / 18f
-                                        val barColor = if (highlightState == true) Color(0xFF1B5E20) else Color(0xFF81C784)
+                                        val heightRatio = if (safeMaxMonth > 0) (valRaw.toFloat() / safeMaxMonth) * 0.9f else 0.05f
+                                        val actualRatio = max(0.05f, heightRatio)
 
-                                        if (highlightState == null) {
-                                            // Future Projection Dotted Bar
+                                        if (isFuture) {
                                             Box(
                                                 modifier = Modifier
                                                     .width(10.dp)
-                                                    .fillMaxHeight(heightRatio)
+                                                    .fillMaxHeight(0.1f) // Dummy small height for future
                                                     .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                                     .border(
                                                         width = 1.dp,
@@ -684,14 +730,14 @@ fun AdminSalesReportScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .width(10.dp)
-                                                    .fillMaxHeight(heightRatio)
+                                                    .fillMaxHeight(actualRatio)
                                                     .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                                    .background(barColor)
+                                                    .background(if (isCurrentMonth) Color(0xFF1B5E20) else Color(0xFF81C784))
                                             )
                                         }
 
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(month, fontSize = 9.sp, color = Color.Gray)
+                                        Text(monthNamesShort[index], fontSize = 8.sp, color = Color.Gray)
                                     }
                                 }
                             }
@@ -731,8 +777,9 @@ fun AdminSalesReportScreen(
                                         modifier = Modifier.padding(12.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text("Tahun 2025", fontSize = 11.sp, color = Color.Gray)
-                                        Text("Rp 98jt", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                                        Text("Tahun ${currentYear - 1}", fontSize = 11.sp, color = Color.Gray)
+                                        val pYText = if (prevYearRevenue >= 1_000_000) "${prevYearRevenue / 1_000_000}jt" else formatRupiah(prevYearRevenue)
+                                        Text(pYText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
                                     }
                                 }
 
@@ -741,13 +788,18 @@ fun AdminSalesReportScreen(
                                     modifier = Modifier.padding(horizontal = 4.dp)
                                 ) {
                                     Text("→", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(Color(0xFFE8F5E9))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text("+45%", color = Color(0xFF2E7D32), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    if (yearGrowth != 0) {
+                                        val growthColor = if (yearGrowth > 0) Color(0xFF2E7D32) else Color.Red
+                                        val growthBg = if (yearGrowth > 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                                        val prefix = if (yearGrowth > 0) "+" else ""
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(growthBg)
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("$prefix$yearGrowth%", color = growthColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
 
@@ -762,39 +814,15 @@ fun AdminSalesReportScreen(
                                         modifier = Modifier.padding(12.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text("Tahun 2026", fontSize = 11.sp, color = Color(0xFF2E7D32))
-                                        Text("Rp 142.5jt", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                        Text("Tahun $currentYear", fontSize = 11.sp, color = Color(0xFF2E7D32))
+                                        val cYText = if (yearlyRevenue >= 1_000_000) "${yearlyRevenue / 1_000_000}jt" else formatRupiah(yearlyRevenue)
+                                        Text(cYText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                                     }
                                 }
                             }
                         }
                     }
-
-                    // Highlight card at bottom
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDF5)),
-                        border = BorderStroke(1.dp, Color(0xFFFFECB3))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Produk Terlaris: Kambing Etawa (48 ekor • Rp 85jt)",
-                                color = Color(0xFFD84315),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
                 }
-
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }

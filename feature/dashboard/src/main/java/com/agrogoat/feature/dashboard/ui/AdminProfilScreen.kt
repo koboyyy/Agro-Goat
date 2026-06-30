@@ -486,21 +486,9 @@ fun AdminProfilScreen(
                             color = Color.White,
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(start = 8.dp),
+                                .padding(start = 8.dp, end = 48.dp), // Added padding to balance center text since share button is removed
                             textAlign = TextAlign.Center
                         )
-
-                        IconButton(
-                            onClick = { Toast.makeText(context, "Membagikan profil...", Toast.LENGTH_SHORT).show() },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.OpenInNew,
-                                contentDescription = "Bagikan",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
                 }
             },
@@ -606,108 +594,11 @@ fun AdminProfilScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFFFF8E1))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Text("⭐ Pro Seller", color = Color(0xFFFFB300), fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                }
 
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFE8F5E9))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Text("✓ Terverifikasi", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                }
-                            }
                         }
                     }
 
-                    // Stats card Grid
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Terjual", fontSize = 12.sp, color = Color.Gray)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("156", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
-                                Text("Ekor", fontSize = 10.sp, color = Color.Gray)
-                            }
 
-                            Box(modifier = Modifier.width(1.dp).height(50.dp).background(Color(0xFFECEFF1)))
-
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Rating", fontSize = 12.sp, color = Color.Gray)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("4.9", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFFFB300))
-                                Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
-                                    repeat(5) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Star,
-                                            contentDescription = null,
-                                            tint = Color(0xFFFFB300),
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Box(modifier = Modifier.width(1.dp).height(50.dp).background(Color(0xFFECEFF1)))
-
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Sejak", fontSize = 12.sp, color = Color.Gray)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("2023", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
-                                Text("Tahun", fontSize = 10.sp, color = Color.Gray)
-                            }
-                        }
-                    }
-
-                    // About peternak card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Tentang Peternak",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = Color.Black
-                            )
-                            Text(
-                                text = userBio.ifEmpty { "Kami fokus pada pembibitan kambing Etawa dan Boer berkualitas tinggi. Semua ternak dirawat dengan standar kesehatan terbaik dan terjamin kesehatannya. Melayani pengiriman se-Sumatera." },
-                                fontSize = 13.sp,
-                                color = Color.DarkGray,
-                                lineHeight = 20.sp
-                            )
-                            if (userPhone.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "WhatsApp: $userPhone",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF2E7D32)
-                                )
-                            }
-                        }
-                    }
 
                     // Location Maps Card
                     if (userAddress.isNotEmpty() || userLocationLat != null) {
@@ -816,17 +707,6 @@ fun AdminProfilScreen(
                                 Text("Log Out 🚪", fontWeight = FontWeight.SemiBold)
                             }
 
-                            Button(
-                                onClick = {
-                                    viewModel.clearOldData {
-                                        Toast.makeText(context, "Semua data lama berhasil dihapus!", Toast.LENGTH_LONG).show()
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Reset Data", fontWeight = FontWeight.SemiBold, color = Color.White)
-                            }
                         }
 
                         Button(

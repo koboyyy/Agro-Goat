@@ -2,6 +2,8 @@ package com.agrogoat.feature.dashboard.ui
 import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.outlined.*
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.SentimentSatisfied
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -34,7 +37,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,6 +76,9 @@ fun ChatScreen(
                 onRoomClick = { room ->
                     viewModel.selectChatRoom(room)
                 },
+                onDeleteRoom = { room ->
+                    viewModel.deleteChatRoom(room.id)
+                },
                 onBackClick = {
                     viewModel.setTab(AppTab.BERANDA)
                 },
@@ -99,6 +110,7 @@ fun ChatScreen(
 fun ChatListScreen(
     chatRooms: List<ChatRoom>,
     onRoomClick: (ChatRoom) -> Unit,
+    onDeleteRoom: (ChatRoom) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -142,6 +154,29 @@ fun ChatListScreen(
         },
         containerColor = Color.White
     ) { innerPadding ->
+        var roomToDelete by remember { mutableStateOf<ChatRoom?>(null) }
+        
+        if (roomToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { roomToDelete = null },
+                title = { Text(text = "Hapus Obrolan") },
+                text = { Text("Apakah Anda yakin ingin menghapus obrolan ini?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        roomToDelete?.let { onDeleteRoom(it) }
+                        roomToDelete = null
+                    }) {
+                        Text("Hapus", color = Color.Red, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { roomToDelete = null }) {
+                        Text("Batal", color = Color.DarkGray)
+                    }
+                }
+            )
+        }
+
         if (chatRooms.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -222,6 +257,22 @@ fun ChatListScreen(
                                 )
                             }
                             
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFFFEBEE))
+                                    .clickable { roomToDelete = room },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Hapus",
+                                    tint = Color(0xFFC62828),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
                             if (room.hasCheckmark) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -253,8 +304,33 @@ fun ChatDetailScreen(
     val isPartnerOnline by viewModel.activePartnerOnline.collectAsState()
     val partnerLastSeen by viewModel.activePartnerLastSeen.collectAsState()
     val currentUserEmail by viewModel.userEmail.collectAsState()
+    val usersProfiles by viewModel.usersProfiles.collectAsState()
+    val partnerEmail = if (currentUserEmail.equals(chatRoom.buyerEmail, ignoreCase = true)) chatRoom.sellerEmail else chatRoom.buyerEmail
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    
+    var messageToDelete by remember { mutableStateOf<String?>(null) }
+    
+    if (messageToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { messageToDelete = null },
+            title = { Text(text = "Hapus Pesan") },
+            text = { Text("Apakah Anda yakin ingin menghapus pesan ini?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    messageToDelete?.let { viewModel.deleteMessage(it) }
+                    messageToDelete = null
+                }) {
+                    Text("Hapus", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { messageToDelete = null }) {
+                    Text("Batal")
+                }
+            }
+        )
+    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -339,9 +415,17 @@ fun ChatDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(end = 6.dp)
                     ) {
+                        val partnerProfile = usersProfiles[partnerEmail.lowercase()]
+                        val partnerPhone = partnerProfile?.get("phone") as? String
+
                         IconButton(
                             onClick = {
-                                Toast.makeText(context, "Memulai panggilan...", Toast.LENGTH_SHORT).show()
+                                if (!partnerPhone.isNullOrBlank()) {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$partnerPhone"))
+                                    context.startActivity(intent)
+                                } else {
+                                    Toast.makeText(context, "Nomor telepon tidak tersedia", Toast.LENGTH_SHORT).show()
+                                }
                             },
                             modifier = Modifier.size(24.dp)
                         ) {
@@ -351,18 +435,7 @@ fun ChatDetailScreen(
                                 tint = Color.White
                             )
                         }
-                        IconButton(
-                            onClick = {
-                                Toast.makeText(context, "Menu lainnya...", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.MoreVert,
-                                contentDescription = "Menu",
-                                tint = Color.White
-                            )
-                        }
+
                     }
                 }
             }
@@ -425,6 +498,15 @@ fun ChatDetailScreen(
                                             )
                                         )
                                         .background(if (isMe) Color(0xFFD2F4D9) else Color(0xFFFFFFFF))
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onLongPress = {
+                                                    if (isMe && msg.content != "...") {
+                                                        messageToDelete = msg.id
+                                                    }
+                                                }
+                                            )
+                                        }
                                         .padding(if (msg.content.startsWith("[PRODUCT_CARD]")) 6.dp else 12.dp, 8.dp)
                                 ) {
                                     when {
@@ -452,7 +534,11 @@ fun ChatDetailScreen(
                                         Text(text = msg.timestamp, fontSize = 10.sp, color = Color.Gray)
                                     }
                                     if (isMe && msg.content != "...") {
-                                        Text(text = "✓✓", color = Color(0xFF4CAF50), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        if (msg.isRead) {
+                                            Text(text = "✓✓", color = Color(0xFF4CAF50), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        } else {
+                                            Text(text = "✓", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
@@ -575,6 +661,9 @@ fun ChatInput(
     onValueChange: (String) -> Unit,
     onSend: () -> Unit
 ) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -594,7 +683,10 @@ fun ChatInput(
                 tint = Color.Gray,
                 modifier = Modifier
                     .size(28.dp)
-                    .clickable { }
+                    .clickable { 
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
                     .padding(2.dp)
             )
 
@@ -614,7 +706,9 @@ fun ChatInput(
                     BasicTextField(
                         value = textInput,
                         onValueChange = onValueChange,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                         textStyle = androidx.compose.ui.text.TextStyle(color = Color.Black, fontSize = 14.sp),
                         singleLine = true
                     )
@@ -626,25 +720,16 @@ fun ChatInput(
                 modifier = Modifier
                     .size(46.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF2E7D32))
-                    .clickable { if (isTyping) onSend() },
+                    .background(if (isTyping) Color(0xFF2E7D32) else Color.LightGray)
+                    .clickable(enabled = isTyping) { onSend() },
                 contentAlignment = Alignment.Center
             ) {
-                if (isTyping) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.Send,
-                        contentDescription = "Kirim",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.Mic,
-                        contentDescription = "Suara",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.Send,
+                    contentDescription = "Kirim",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }

@@ -204,6 +204,7 @@ fun AdminDashboardScreen(
                             onBack = { currentTab = AdminTab.HOME }
                         )
                         AdminTab.LAPORAN -> AdminSalesReportScreen(
+                            viewModel = viewModel,
                             onBack = { currentTab = AdminTab.HOME }
                         )
                         AdminTab.PROFIL -> AdminProfilScreen(
@@ -808,6 +809,29 @@ fun AdminDataTab(
                             goat.category.displayName.contains(searchQuery, ignoreCase = true)
         matchesGender && matchesSearch
     }
+    
+    var goatToDelete by remember { mutableStateOf<GoatItem?>(null) }
+    
+    if (goatToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { goatToDelete = null },
+            title = { Text(text = "Hapus Ternak") },
+            text = { Text("Apakah Anda yakin ingin menghapus data kambing ${goatToDelete?.name} dari sistem?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    goatToDelete?.let { viewModel.deleteGoatItem(it.id) }
+                    goatToDelete = null
+                }) {
+                    Text("Hapus", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { goatToDelete = null }) {
+                    Text("Batal", color = Color.DarkGray)
+                }
+            }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -841,8 +865,7 @@ fun AdminDataTab(
                         unfocusedTextColor = Color.White
                     ),
                     modifier = Modifier
-                        .width(140.dp)
-                        .height(44.dp),
+                        .width(160.dp),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
                 )
@@ -944,12 +967,29 @@ fun AdminDataTab(
 
                                 // Information details
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = goat.name,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        color = Color(0xFF111612)
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Text(
+                                            text = goat.name,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp,
+                                            color = Color(0xFF111612)
+                                        )
+                                        // Status Badge
+                                        val (statusColor, statusText) = if (goat.isAvailable) Color(0xFF2E7D32) to "Tersedia" else Color(0xFFC62828) to "Terjual"
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(statusColor.copy(alpha = 0.15f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(text = statusText, color = statusColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    
                                     Text(
                                         text = "• ${goat.gender} • ${goat.age} Th",
                                         fontSize = 12.sp,
@@ -980,17 +1020,17 @@ fun AdminDataTab(
                                 }
 
                                 // Edit & Delete Action Buttons
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     // Edit Button
-                                    IconButton(
-                                        onClick = { onEditClick(goat) },
+                                    Box(
                                         modifier = Modifier
-                                            .size(36.dp)
+                                            .size(32.dp)
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(Color(0xFFE8F5E9))
+                                            .clickable { onEditClick(goat) },
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Edit,
@@ -1000,13 +1040,16 @@ fun AdminDataTab(
                                         )
                                     }
 
+                                    Spacer(modifier = Modifier.width(10.dp))
+
                                     // Delete Button
-                                    IconButton(
-                                        onClick = { viewModel.deleteGoatItem(goat.id) },
+                                    Box(
                                         modifier = Modifier
-                                            .size(36.dp)
+                                            .size(32.dp)
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(Color(0xFFFFEBEE))
+                                            .clickable { goatToDelete = goat },
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
@@ -2040,6 +2083,7 @@ fun AdminGoatDetailView(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminEditGoatView(
     goat: GoatItem,
@@ -2047,6 +2091,7 @@ fun AdminEditGoatView(
     onSave: (GoatItem) -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var name by remember { mutableStateOf(goat.name) }
     var category by remember { mutableStateOf(goat.category) }
     var gender by remember { mutableStateOf(goat.gender) }
@@ -2054,6 +2099,30 @@ fun AdminEditGoatView(
     var ageStr by remember { mutableStateOf(goat.age.toString()) }
     var priceStr by remember { mutableStateOf(goat.price.toString()) }
     var desc by remember { mutableStateOf(goat.description) }
+    var isAvailable by remember { mutableStateOf(goat.isAvailable) }
+    
+    var imageUriStr by remember { mutableStateOf<String?>(goat.imageUri) }
+    var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            imageUriStr = uri.toString()
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                    bitmap = android.graphics.ImageDecoder.decodeBitmap(source)
+                } else {
+                    @Suppress("DEPRECATION")
+                    bitmap = android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -2099,133 +2168,238 @@ fun AdminEditGoatView(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nama / ID Kambing *") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            // Category Dropdown
-            var catExpanded by remember { mutableStateOf(false) }
-            Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = category.displayName,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Jenis Ras *") },
-                    trailingIcon = {
-                        IconButton(onClick = { catExpanded = true }) {
-                            Icon(imageVector = Icons.Outlined.ArrowDropDown, contentDescription = null)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                DropdownMenu(
-                    expanded = catExpanded,
-                    onDismissRequest = { catExpanded = false }
-                ) {
-                    GoatCategory.values().forEach { cat ->
-                        DropdownMenuItem(
-                            text = { Text(cat.displayName) },
-                            onClick = {
-                                category = cat
-                                catExpanded = false
-                            }
+            // Upload Picture
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .border(
+                        border = BorderStroke(1.5.dp, Color(0xFFC2D2C2)),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .clickable { launcher.launch("image/*") },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                if (bitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = bitmap!!.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else if (!imageUriStr.isNullOrEmpty()) {
+                     GoatImage(
+                        imageUri = imageUriStr,
+                        defaultImageRes = com.agrogoat.core.designsystem.R.drawable.burawa,
+                        contentDescription = "Foto Ternak",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PhotoCamera,
+                            contentDescription = null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(48.dp)
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Ketuk untuk mengubah foto", color = Color.Gray, fontSize = 14.sp)
                     }
                 }
             }
 
-            // Gender Selection
-            Row(
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Text("Jenis Kelamin *", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = gender == "Jantan", onClick = { gender = "Jantan" })
-                    Text("Jantan", fontSize = 13.sp)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = gender == "Betina", onClick = { gender = "Betina" })
-                    Text("Betina", fontSize = 13.sp)
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Nama / ID Kambing *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    // Category Dropdown
+                    var catExpanded by remember { mutableStateOf(false) }
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = category.displayName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Jenis Ras *") },
+                            trailingIcon = {
+                                IconButton(onClick = { catExpanded = true }) {
+                                    Icon(imageVector = Icons.Outlined.ArrowDropDown, contentDescription = null)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        DropdownMenu(
+                            expanded = catExpanded,
+                            onDismissRequest = { catExpanded = false }
+                        ) {
+                            GoatCategory.values().forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text(cat.displayName) },
+                                    onClick = {
+                                        category = cat
+                                        catExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Gender Selection
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        Text("Jenis Kelamin *", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = gender == "Jantan", onClick = { gender = "Jantan" })
+                            Text("Jantan", fontSize = 13.sp)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = gender == "Betina", onClick = { gender = "Betina" })
+                            Text("Betina", fontSize = 13.sp)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = ageStr,
+                            onValueChange = { ageStr = it },
+                            label = { Text("Umur (Th) *") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = weightStr,
+                            onValueChange = { weightStr = it },
+                            label = { Text("Berat (Kg) *") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = priceStr,
+                        onValueChange = { priceStr = it },
+                        label = { Text("Harga (Rp) *") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = desc,
+                        onValueChange = { desc = it },
+                        label = { Text("Catatan Tambahan") },
+                        maxLines = 3,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    // Status Ketersediaan
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Status Ketersediaan", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.DarkGray)
+                        Switch(
+                            checked = isAvailable,
+                            onCheckedChange = { isAvailable = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF1F6E35)
+                            )
+                        )
+                    }
+                    Text(
+                        text = if (isAvailable) "Kambing tersedia untuk dijual" else "Kambing sudah terjual",
+                        fontSize = 11.sp,
+                        color = if (isAvailable) Color(0xFF2E7D32) else Color(0xFFC62828)
+                    )
                 }
             }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = ageStr,
-                    onValueChange = { ageStr = it },
-                    label = { Text("Umur (Th) *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                OutlinedTextField(
-                    value = weightStr,
-                    onValueChange = { weightStr = it },
-                    label = { Text("Berat (Kg) *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-
-            OutlinedTextField(
-                value = priceStr,
-                onValueChange = { priceStr = it },
-                label = { Text("Harga (Rp) *") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            OutlinedTextField(
-                value = desc,
-                onValueChange = { desc = it },
-                label = { Text("Catatan Tambahan") },
-                maxLines = 3,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
+                enabled = !isSaving,
                 onClick = {
                     val weight = weightStr.replace(Regex("[^0-9]"), "").toIntOrNull()
                     val age = ageStr.replace(",", ".").replace(Regex("[^0-9.]"), "").toDoubleOrNull()
                     val price = priceStr.replace(Regex("[^0-9]"), "").toLongOrNull()
                     if (name.isBlank() || weight == null || age == null || price == null) {
-                        Toast.makeText(context, "Harap isi semua kolom dengan benar!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Harap isi semua kolom wajib dengan benar!", Toast.LENGTH_SHORT).show()
                     } else {
-                        val updatedGoat = goat.copy(
-                            name = name,
-                            category = category,
-                            gender = gender,
-                            weight = weight,
-                            age = age,
-                            price = price,
-                            description = desc
-                        )
-                        onSave(updatedGoat)
+                        coroutineScope.launch {
+                            isSaving = true
+                            var finalImageUri: String? = imageUriStr
+                            
+                            if (imageUriStr != null && !imageUriStr!!.startsWith("http")) {
+                                Toast.makeText(context, "Mengunggah foto ke Cloudinary...", Toast.LENGTH_SHORT).show()
+                                val cloudinaryUrl = CloudinaryUploader.uploadImage(
+                                    context,
+                                    android.net.Uri.parse(imageUriStr!!)
+                                )
+                                if (cloudinaryUrl != null) {
+                                    finalImageUri = cloudinaryUrl
+                                    Toast.makeText(context, "Foto berhasil diunggah!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Gagal mengunggah foto. Menggunakan data lama.", Toast.LENGTH_LONG).show()
+                                }
+                            }
+
+                            val updatedGoat = goat.copy(
+                                name = name,
+                                category = category,
+                                gender = gender,
+                                weight = weight,
+                                age = age,
+                                price = price,
+                                description = desc,
+                                isAvailable = isAvailable,
+                                imageUri = finalImageUri
+                            )
+                            onSave(updatedGoat)
+                        }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6E35)),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Simpan Perubahan 💾", color = Color.White, fontWeight = FontWeight.Bold)
+                if (isSaving) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Simpan Perubahan 💾", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
         }
     }

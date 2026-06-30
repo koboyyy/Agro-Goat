@@ -7,10 +7,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -126,6 +132,7 @@ fun MainAppShell(
     val hideBottomBarFromVM by viewModel.hideBottomBar.collectAsState()
     
     var isCheckingSession by remember { mutableStateOf(true) }
+    var showSplash by remember { mutableStateOf(true) }
     var isLoggedIn by remember { mutableStateOf(false) }
     var lastTab by remember { mutableStateOf(AppTab.BERANDA) }
 
@@ -155,6 +162,8 @@ fun MainAppShell(
     }
 
     LaunchedEffect(Unit) {
+        val startTime = System.currentTimeMillis()
+        
         val isFirebaseInitialized = try {
             com.google.firebase.FirebaseApp.getInstance()
             true
@@ -214,28 +223,16 @@ fun MainAppShell(
             }
         }
         isCheckingSession = false
+        
+        val elapsed = System.currentTimeMillis() - startTime
+        if (elapsed < 2200) {
+            kotlinx.coroutines.delay(2200 - elapsed)
+        }
+        showSplash = false
     }
 
-    if (isCheckingSession) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF1F6E35)),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                CircularProgressIndicator(color = Color.White)
-                Text(
-                    text = "Menghubungkan Sesi...",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-            }
-        }
+    if (showSplash) {
+        ModernSplashScreen()
     } else {
         val navController = rememberNavController()
         
@@ -598,6 +595,78 @@ fun OfflineScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ModernSplashScreen() {
+    var startAnimation by remember { mutableStateOf(false) }
+    val scale = animateFloatAsState(
+        targetValue = if (startAnimation) 1.2f else 0.8f,
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing)
+    )
+    val alpha = animateFloatAsState(
+        targetValue = if (startAnimation) 1f else 0f,
+        animationSpec = tween(durationMillis = 1500)
+    )
+    
+    LaunchedEffect(Unit) {
+        startAnimation = true
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(Color(0xFF4CAF50), Color(0xFF1B5E20))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .scale(scale.value)
+                .alpha(alpha.value)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(140.dp)
+                    .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = com.agrogoat.core.designsystem.R.drawable.logo),
+                    contentDescription = "Logo",
+                    modifier = Modifier.size(80.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Agro Goat",
+                color = Color.White,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Platform Peternakan Modern",
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+            CircularProgressIndicator(
+                color = Color.White,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(36.dp)
+            )
         }
     }
 }

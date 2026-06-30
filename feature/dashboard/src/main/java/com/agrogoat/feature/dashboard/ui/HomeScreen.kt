@@ -101,9 +101,6 @@ fun HomeScreen(
         mutableStateOf<GoatItem?>(null)
     }
 
-    var showPromoCouponSheet by remember {
-        mutableStateOf(false)
-    }
 
     LaunchedEffect(currentSubScreen, currentTab) {
         if (currentTab == AppTab.BERANDA) {
@@ -165,7 +162,7 @@ fun HomeScreen(
                     // Special Promo Banner
                     item {
                         PromoSpecialBanner(
-                            onClick = { showPromoCouponSheet = true }
+                            onClick = {}
                         )
                     }
 
@@ -495,109 +492,5 @@ fun HomeScreen(
 
 
 
-    // 2. PROMO BANNER SPECIAL SHEEET
-    if (showPromoCouponSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showPromoCouponSheet = false },
-            containerColor = Color(0xFF1B5E20), // matching promo visual green
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Header with White Close Icon
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(
-                        onClick = { showPromoCouponSheet = false },
-                        modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.1f), CircleShape)
-                            .size(36.dp)
-                    ) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = Color.White)
-                    }
-                }
-
-                // Visual elements
-                Box(
-                    modifier = Modifier.size(100.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CutePromoGoat(Modifier.fillMaxSize())
-                }
-
-                Text(
-                    text = "Selamat! Anda Mendapatkan Kupon",
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
-
-                Text(
-                    text = "Kambing Sehat & Berkualitas",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black),
-                    color = Color.White
-                )
-
-                // The Promo Code Box
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "KODE KUPON ANDA:",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "GOATBARU20",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color(0xFFFFD54F), // Amber color matching golden coupon style
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = "Potongan diskon langsung 20% otomatis diaplikasikan ke pembelian kambing pertama Anda.",
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = {
-                        showPromoCouponSheet = false
-                        viewModel.setTab(AppTab.KATALOG)
-                        Toast.makeText(context, "Kupon diskon diaktifkan!", Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Text(
-                        text = "Gunakan Sekarang",
-                        color = Color(0xFF1B5E20),
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-        }
-    }
 }
 

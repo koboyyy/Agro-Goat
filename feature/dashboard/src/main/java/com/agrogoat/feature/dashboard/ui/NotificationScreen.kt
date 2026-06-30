@@ -50,46 +50,12 @@ fun NotificationScreen(
     // 0 = Semua, 1 = Belum Dibaca, 2 = Promo
     var selectedTabState by remember { mutableStateOf(0) }
 
-    // Seed mock data if database is empty so that it matches user screenshots immediately
-    val mockNotifications = remember {
-        listOf(
-            NotificationItem(
-                id = "mock_order_1",
-                title = "Pesanan Anda sedang diproses",
-                message = "Order #AG-180626-002 telah dikonfirmasi oleh penjual.",
-                type = NotificationType.ORDER_STATUS,
-                timestamp = "10 menit yang lalu",
-                isRead = false
-            ),
-            NotificationItem(
-                id = "mock_promo_1",
-                title = "Promo Spesial Akhir Bulan! 🎉",
-                message = "Diskon hingga 20% untuk pembelian Etawa.",
-                type = NotificationType.PROMO,
-                timestamp = "2 jam yang lalu",
-                isRead = false
-            ),
-            NotificationItem(
-                id = "mock_system_1",
-                title = "Pembaruan Aplikasi",
-                message = "Silakan perbarui aplikasi Anda ke versi terbaru v2.1.0.",
-                type = NotificationType.SYSTEM,
-                timestamp = "Kemarin, 14:30",
-                isRead = true
-            )
-        )
-    }
-
-    val displayNotifications = remember(dbNotifications) {
-        if (dbNotifications.isEmpty()) mockNotifications else dbNotifications
-    }
-
     // Filter list according to tab selected
-    val filteredNotifications = remember(displayNotifications, selectedTabState) {
+    val filteredNotifications = remember(dbNotifications, selectedTabState) {
         when (selectedTabState) {
-            1 -> displayNotifications.filter { !it.isRead }
-            2 -> displayNotifications.filter { it.type == NotificationType.PROMO }
-            else -> displayNotifications
+            1 -> dbNotifications.filter { !it.isRead }
+            2 -> dbNotifications.filter { it.type == NotificationType.PROMO }
+            else -> dbNotifications
         }
     }
 
@@ -223,11 +189,11 @@ fun NotificationScreen(
                         NotificationCardItem(
                             notification = notification,
                             onClick = {
-                                if (notification.id.startsWith("mock_")) {
-                                    // Simulated read for mockup
-                                    Toast.makeText(context, "Membaca notifikasi simulasi", Toast.LENGTH_SHORT).show()
+                                viewModel.markNotificationAsRead(notification.id)
+                                if (notification.type == NotificationType.ORDER_STATUS) {
+                                    viewModel.setTab(AppTab.PESANAN)
                                 } else {
-                                    viewModel.markNotificationAsRead(notification.id)
+                                    viewModel.setTab(AppTab.BERANDA)
                                 }
                             }
                         )

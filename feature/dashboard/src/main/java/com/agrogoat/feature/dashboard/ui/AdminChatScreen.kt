@@ -2,6 +2,8 @@ package com.agrogoat.feature.dashboard.ui
 import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.outlined.*
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,11 +27,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agrogoat.core.designsystem.R
@@ -85,6 +94,29 @@ fun AdminChatDashboardScreen(
         },
         containerColor = Color(0xFF4CAF50) // Matching screenshot green
     ) { innerPadding ->
+        var roomToDelete by remember { mutableStateOf<ChatRoom?>(null) }
+        
+        if (roomToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { roomToDelete = null },
+                title = { Text(text = "Hapus Obrolan") },
+                text = { Text("Apakah Anda yakin ingin menghapus obrolan ini?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        roomToDelete?.let { viewModel.deleteChatRoom(it.id) }
+                        roomToDelete = null
+                    }) {
+                        Text("Hapus", color = Color.Red, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { roomToDelete = null }) {
+                        Text("Batal", color = Color.DarkGray)
+                    }
+                }
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -191,6 +223,22 @@ fun AdminChatDashboardScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFFFEBEE))
+                                        .clickable { roomToDelete = room },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Hapus",
+                                        tint = Color(0xFFC62828),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -213,9 +261,34 @@ fun AdminChatDetailScreen(
     val isPartnerOnline by viewModel.activePartnerOnline.collectAsState()
     val partnerLastSeen by viewModel.activePartnerLastSeen.collectAsState()
     val currentUserEmail by viewModel.userEmail.collectAsState()
+    val usersProfiles by viewModel.usersProfiles.collectAsState()
+    val partnerEmail = chatRoom.buyerEmail
     
     var textInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    var messageToDelete by remember { mutableStateOf<String?>(null) }
+    
+    if (messageToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { messageToDelete = null },
+            title = { Text(text = "Hapus Pesan") },
+            text = { Text("Apakah Anda yakin ingin menghapus pesan ini?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    messageToDelete?.let { viewModel.deleteMessage(it) }
+                    messageToDelete = null
+                }) {
+                    Text("Hapus", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { messageToDelete = null }) {
+                    Text("Batal")
+                }
+            }
+        )
+    }
 
     val displayMessages = liveMessages
 
@@ -298,18 +371,23 @@ fun AdminChatDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(end = 6.dp)
                     ) {
+                        val partnerProfile = usersProfiles[partnerEmail.lowercase()]
+                        val partnerPhone = partnerProfile?.get("phone") as? String
+
                         IconButton(
-                            onClick = { Toast.makeText(context, "Memanggil...", Toast.LENGTH_SHORT).show() },
+                            onClick = {
+                                if (!partnerPhone.isNullOrBlank()) {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$partnerPhone"))
+                                    context.startActivity(intent)
+                                } else {
+                                    Toast.makeText(context, "Nomor telepon tidak tersedia", Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(Icons.Outlined.Call, contentDescription = "Panggil", tint = Color.White)
                         }
-                        IconButton(
-                            onClick = { Toast.makeText(context, "Lainnya...", Toast.LENGTH_SHORT).show() },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = "Menu", tint = Color.White)
-                        }
+
                     }
                 }
             }
@@ -357,13 +435,26 @@ fun AdminChatDetailScreen(
                 items(displayMessages) { message ->
                     val isMe = message.senderEmail.equals(currentUserEmail, ignoreCase = true)
                     
-                    if (message.content == "[ATTACHMENT]") {
+                    if (message.content.startsWith("[PRODUCT_CARD]")) {
                         // Renders Product Attachment Card
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
+                            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
                         ) {
-                            AdminProductAttachmentBubble(message.timestamp)
+                            AdminProductAttachmentBubble(
+                                goatId = message.content.removePrefix("[PRODUCT_CARD]"),
+                                viewModel = viewModel,
+                                timestamp = message.timestamp,
+                                isMe = isMe,
+                                isRead = message.isRead,
+                                modifier = Modifier.pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            if (isMe) messageToDelete = message.id
+                                        }
+                                    )
+                                }
+                            )
                         }
                     } else {
                         // Standard chat message bubble
@@ -402,7 +493,15 @@ fun AdminChatDetailScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (isMe) Color(0xFF1B5E20) else Color.White
                                 ),
-                                modifier = Modifier.widthIn(max = 260.dp)
+                                modifier = Modifier
+                                    .widthIn(max = 260.dp)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                if (isMe) messageToDelete = message.id
+                                            }
+                                        )
+                                    }
                             ) {
                                 Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
                                     Text(
@@ -422,12 +521,21 @@ fun AdminChatDetailScreen(
                                         )
                                         if (isMe) {
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "✓✓",
-                                                color = Color.White.copy(alpha = 0.8f),
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
+                                            if (message.isRead) {
+                                                Text(
+                                                    text = "✓✓",
+                                                    color = Color.White.copy(alpha = 0.8f),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "✓",
+                                                    color = Color.White.copy(alpha = 0.5f),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -440,6 +548,9 @@ fun AdminChatDetailScreen(
             }
 
             // Input panel bottom
+            val focusRequester = remember { FocusRequester() }
+            val keyboardController = LocalSoftwareKeyboardController.current
+
             Surface(
                 color = Color.Transparent,
                 modifier = Modifier
@@ -451,31 +562,48 @@ fun AdminChatDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
-                        value = textInput,
-                        onValueChange = { textInput = it },
-                        placeholder = { Text("Tulis pesan...", color = Color.Gray, fontSize = 14.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.SentimentSatisfiedAlt,
-                                contentDescription = "Emoji",
-                                tint = Color.Gray
-                            )
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF5F5F5),
-                            unfocusedContainerColor = Color(0xFFF5F5F5),
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        shape = RoundedCornerShape(26.dp),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
+                    Icon(
+                        imageVector = Icons.Filled.SentimentSatisfiedAlt,
+                        contentDescription = "Emoticon",
+                        tint = Color.Gray,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable {
+                                focusRequester.requestFocus()
+                                keyboardController?.show()
+                            }
+                            .padding(2.dp)
                     )
 
+                    Card(
+                        shape = RoundedCornerShape(26.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        BasicTextField(
+                            value = textInput,
+                            onValueChange = { textInput = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .focusRequester(focusRequester),
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = Color.Black,
+                                fontSize = 15.sp
+                            ),
+                            decorationBox = { innerTextField ->
+                                if (textInput.isEmpty()) {
+                                    Text("Tulis pesan...", color = Color.Gray, fontSize = 14.sp)
+                                }
+                                innerTextField()
+                            }
+                        )
+                    }
+
+                    val isTyping = textInput.isNotBlank()
                     IconButton(
                         onClick = {
-                            if (textInput.isNotBlank()) {
+                            if (isTyping) {
                                 viewModel.sendMessage(textInput)
                                 textInput = ""
                             }
@@ -483,7 +611,7 @@ fun AdminChatDetailScreen(
                         modifier = Modifier
                             .size(46.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1B5E20))
+                            .background(if (isTyping) Color(0xFF1B5E20) else Color.LightGray)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.Send,
@@ -500,91 +628,114 @@ fun AdminChatDetailScreen(
 
 @Composable
 fun AdminProductAttachmentBubble(
+    goatId: String,
+    viewModel: AgroGoatViewModel,
     timestamp: String,
+    isMe: Boolean,
+    isRead: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        modifier = modifier
-            .width(260.dp)
-            .shadow(1.dp, RoundedCornerShape(16.dp))
-    ) {
-        Column {
-            // Attachment Image
-            GoatImage(
-                imageUri = null,
-                defaultImageRes = com.agrogoat.core.designsystem.R.drawable.etawa,
-                contentDescription = "Etawa",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(130.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            )
+    val goats by viewModel.goats.collectAsState()
+    val goat = goats.find { it.id == goatId }
 
-            // Info Details inside bubble card
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = "Etawa",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.Black
+    if (goat != null) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = modifier
+                .width(260.dp)
+                .shadow(1.dp, RoundedCornerShape(16.dp))
+        ) {
+            Column {
+                // Attachment Image
+                GoatImage(
+                    imageUri = goat.imageUri,
+                    defaultImageRes = com.agrogoat.core.designsystem.R.drawable.etawa,
+                    contentDescription = goat.name,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                 )
-                Text(
-                    text = "Etawa • Jantan • 45 Kg",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+    
+                // Info Details inside bubble card
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Rp 3.5jt",
+                        text = goat.name,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color(0xFF2E7D32)
+                        color = Color.Black
                     )
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFE8F5E9))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    Text(
+                        text = "${goat.category} • ${goat.gender} • ${goat.weight} Kg",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val priceStr = "Rp ${java.text.NumberFormat.getNumberInstance(java.util.Locale("id", "ID")).format(goat.price)}"
+                        Text(
+                            text = priceStr,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF2E7D32)
+                        )
+    
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFE8F5E9))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Tersedia",
+                                color = Color(0xFF2E7D32),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+    
+                    Spacer(modifier = Modifier.height(6.dp))
+    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Sehat",
-                            color = Color(0xFF2E7D32),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
+                            text = timestamp,
+                            color = Color.Gray,
+                            fontSize = 9.sp
                         )
+                        if (isMe) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            if (isRead) {
+                                Text(
+                                    text = "✓✓",
+                                    color = Color(0xFF2E7D32),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Text(
+                                    text = "✓",
+                                    color = Color.Gray,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = timestamp,
-                        color = Color.Gray,
-                        fontSize = 9.sp
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "✓✓",
-                        color = Color(0xFF2E7D32),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         }
+    } else {
+        Text(text = "[Produk tidak ditemukan]", fontSize = 14.sp, color = Color.Gray, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
     }
 }

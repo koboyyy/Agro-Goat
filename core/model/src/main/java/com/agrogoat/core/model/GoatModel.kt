@@ -71,7 +71,8 @@ data class MessageItem(
     val timestamp: String,
     val senderEmail: String = "",
     val participants: List<String> = emptyList(),
-    val serverTimestamp: Long? = null
+    val serverTimestamp: Long? = null,
+    val isRead: Boolean = false
 )
 
 enum class MessageSender { USER, SYSTEM, BREEDER_ETAWA, BREEDER_POTONG }
@@ -124,7 +125,8 @@ fun mapToGoatItem(map: Map<String, Any?>): GoatItem = GoatItem(
 fun MessageItem.toMap(): Map<String, Any?> = mapOf(
     "id" to id, "chatRoomId" to chatRoomId, "content" to content, "sender" to sender.name,
     "timestamp" to timestamp, "senderEmail" to senderEmail, "participants" to participants,
-    "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+    "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+    "isRead" to isRead
 )
 
 @Suppress("UNCHECKED_CAST")
@@ -153,7 +155,8 @@ fun mapToMessageItem(map: Map<String, Any?>, isPending: Boolean = false): Messag
         timestamp = timestampStr,
         senderEmail = map["senderEmail"] as? String ?: "",
         participants = (map["participants"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-        serverTimestamp = serverTime
+        serverTimestamp = serverTime,
+        isRead = map["isRead"] as? Boolean ?: false
     )
 }
 

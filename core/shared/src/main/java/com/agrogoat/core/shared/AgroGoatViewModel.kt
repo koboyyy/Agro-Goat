@@ -633,6 +633,13 @@ class AgroGoatViewModel @Inject constructor(
     }
 
     // --- CHAT SECURITY EXAMPLE ---
+    fun deleteMessage(messageId: String) {
+        db.collection("messages").document(messageId).delete()
+    }
+
+    fun deleteChatRoom(roomId: String) {
+        db.collection("chat_rooms").document(roomId).delete()
+    }
     fun sendMessage(content: String, recipientUid: String = "ADMIN_UID") {
         var chatRoom = _selectedChatRoom.value
         val userEmail = (auth.currentUser?.email ?: _userEmail.value).trim().lowercase(java.util.Locale.ROOT)
@@ -851,6 +858,32 @@ class AgroGoatViewModel @Inject constructor(
 
     fun setActiveChatRoomId(roomId: String?) {
         _activeChatRoomId.value = roomId
+        if (roomId != null) {
+            markMessagesAsRead(roomId)
+        }
+    }
+
+    private fun markMessagesAsRead(roomId: String) {
+        val currentUserEmail = (auth.currentUser?.email ?: _userEmail.value).trim().lowercase(java.util.Locale.ROOT)
+        db.collection("messages")
+            .whereEqualTo("chatRoomId", roomId)
+            .whereEqualTo("isRead", false)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val batch = db.batch()
+                var hasUpdates = false
+                for (doc in snapshot.documents) {
+                    val senderEmail = doc.getString("senderEmail") ?: ""
+                    // Jika sender BUKAN saya, berarti pesan ini untuk saya, maka tandai sebagai sudah dibaca
+                    if (!senderEmail.equals(currentUserEmail, ignoreCase = true)) {
+                        batch.update(doc.reference, "isRead", true)
+                        hasUpdates = true
+                    }
+                }
+                if (hasUpdates) {
+                    batch.commit()
+                }
+            }
     }
 
     // --- GOAT FUNCTIONS ---
@@ -977,11 +1010,14 @@ class AgroGoatViewModel @Inject constructor(
 
         db.collection("orders").document(newOrder.id).set(newOrder.toMap())
         
+        val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+        val currentTime = sdf.format(Date())
+
         val newNotif = NotificationItem(
             title = "Pesanan Dibuat",
             message = "Pesanan ${goat.name} menunggu konfirmasi penjual.",
             type = NotificationType.ORDER_STATUS,
-            timestamp = "Baru saja",
+            timestamp = currentTime,
             userId = uid
         )
         db.collection("notifications").document(newNotif.id).set(newNotif.toMap())
