@@ -1,2 +1,0 @@
--keep,allowobfuscation,allowshrinking class com.agrogoat.core.shared.AgroGoatViewModel
--keep,allowobfuscation,allowshrinking class com.agrogoat.core.shared.AgroGoatViewModel

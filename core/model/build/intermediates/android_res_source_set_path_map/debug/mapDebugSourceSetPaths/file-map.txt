@@ -1,8 +1,0 @@
-com.agrogoat.core.model-pngs-0 /home/evo/Desktop/Agro-Goat/core/model/build/generated/res/pngs/debug
-com.agrogoat.core.model-updated_navigation_xml-1 /home/evo/Desktop/Agro-Goat/core/model/build/generated/updated_navigation_xml/debug
-com.agrogoat.core.model-mergeDebugResources-2 /home/evo/Desktop/Agro-Goat/core/model/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
-com.agrogoat.core.model-mergeDebugResources-3 /home/evo/Desktop/Agro-Goat/core/model/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
-com.agrogoat.core.model-debug-4 /home/evo/Desktop/Agro-Goat/core/model/build/intermediates/merged_res/debug/mergeDebugResources
-com.agrogoat.core.model-debug-5 /home/evo/Desktop/Agro-Goat/core/model/build/intermediates/packaged_res/debug/packageDebugResources
-com.agrogoat.core.model-debug-6 /home/evo/Desktop/Agro-Goat/core/model/src/debug/res
-com.agrogoat.core.model-main-7 /home/evo/Desktop/Agro-Goat/core/model/src/main/res

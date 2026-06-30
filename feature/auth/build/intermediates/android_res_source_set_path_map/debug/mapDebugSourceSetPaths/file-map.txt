@@ -1,8 +1,0 @@
-com.agrogoat.feature.auth-pngs-0 /home/evo/Desktop/Agro-Goat/feature/auth/build/generated/res/pngs/debug
-com.agrogoat.feature.auth-updated_navigation_xml-1 /home/evo/Desktop/Agro-Goat/feature/auth/build/generated/updated_navigation_xml/debug
-com.agrogoat.feature.auth-mergeDebugResources-2 /home/evo/Desktop/Agro-Goat/feature/auth/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
-com.agrogoat.feature.auth-mergeDebugResources-3 /home/evo/Desktop/Agro-Goat/feature/auth/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
-com.agrogoat.feature.auth-debug-4 /home/evo/Desktop/Agro-Goat/feature/auth/build/intermediates/merged_res/debug/mergeDebugResources
-com.agrogoat.feature.auth-debug-5 /home/evo/Desktop/Agro-Goat/feature/auth/build/intermediates/packaged_res/debug/packageDebugResources
-com.agrogoat.feature.auth-debug-6 /home/evo/Desktop/Agro-Goat/feature/auth/src/debug/res
-com.agrogoat.feature.auth-main-7 /home/evo/Desktop/Agro-Goat/feature/auth/src/main/res
