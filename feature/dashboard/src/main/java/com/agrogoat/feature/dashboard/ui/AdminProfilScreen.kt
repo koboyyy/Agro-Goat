@@ -704,7 +704,17 @@ fun AdminProfilScreen(
                                 border = BorderStroke(1.dp, Color.White),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Log Out 🚪", fontWeight = FontWeight.SemiBold)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Outlined.Logout,
+                                        contentDescription = "Log Out",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text("Log Out", fontWeight = FontWeight.SemiBold)
+                                }
                             }
 
                         }
