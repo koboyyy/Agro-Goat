@@ -8,6 +8,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -990,6 +992,11 @@ fun LoginScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
+                                Image(
+                                    painter = painterResource(id = com.agrogoat.core.designsystem.R.drawable.ic_google),
+                                    contentDescription = "Google Icon",
+                                    modifier = Modifier.size(24.dp)
+                                )
                                 Text(
                                     text = "Masuk dengan Google",
                                     fontWeight = FontWeight.Bold,
@@ -1552,6 +1559,11 @@ fun LoginScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
+                                Image(
+                                    painter = painterResource(id = com.agrogoat.core.designsystem.R.drawable.ic_google),
+                                    contentDescription = "Google Icon",
+                                    modifier = Modifier.size(24.dp)
+                                )
                                 Text(
                                     text = "Daftar dengan Google",
                                     fontWeight = FontWeight.Bold,

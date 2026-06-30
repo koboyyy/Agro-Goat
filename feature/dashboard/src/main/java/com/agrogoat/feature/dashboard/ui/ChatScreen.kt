@@ -115,7 +115,7 @@ fun ChatListScreen(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        modifier = modifier.fillMaxSize().padding(bottom = 90.dp),
+        modifier = modifier.fillMaxSize(),
         topBar = {
             Surface(
                 modifier = Modifier
@@ -152,7 +152,7 @@ fun ChatListScreen(
                 }
             }
         },
-        containerColor = Color.White
+        containerColor = Color.Transparent
     ) { innerPadding ->
         var roomToDelete by remember { mutableStateOf<ChatRoom?>(null) }
         
@@ -214,7 +214,7 @@ fun ChatListScreen(
                             .padding(horizontal = 20.dp)
                             .let { if (borderStroke != null) it.border(borderStroke, RoundedCornerShape(12.dp)) else it }
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF5F5F5))
+                            .background(Color.White)
                             .clickable { onRoomClick(room) }
                             .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {

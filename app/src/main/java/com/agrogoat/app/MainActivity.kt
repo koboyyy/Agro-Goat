@@ -642,8 +642,10 @@ fun ModernSplashScreen() {
                 Image(
                     painter = painterResource(id = com.agrogoat.core.designsystem.R.drawable.logo),
                     contentDescription = "Logo",
-                    modifier = Modifier.size(80.dp),
-                    contentScale = ContentScale.Fit
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))
