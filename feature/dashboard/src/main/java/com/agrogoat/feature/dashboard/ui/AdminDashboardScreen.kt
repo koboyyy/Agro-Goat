@@ -364,20 +364,23 @@ fun formatShortRupiah(amount: Long): String {
 }
 
 @Composable
-fun SalesTrendChart(modifier: Modifier = Modifier) {
+fun SalesTrendChart(dataPoints: List<Float>, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
         
-        val points = listOf(
-            Offset(width * 0.05f, height * 0.85f),
-            Offset(width * 0.20f, height * 0.55f),
-            Offset(width * 0.35f, height * 0.65f),
-            Offset(width * 0.50f, height * 0.40f),
-            Offset(width * 0.65f, height * 0.48f),
-            Offset(width * 0.80f, height * 0.25f),
-            Offset(width * 0.95f, height * 0.18f)
-        )
+        val maxVal = dataPoints.maxOrNull()?.takeIf { it > 0 } ?: 1f
+        
+        val points = dataPoints.mapIndexed { index, value ->
+            val normalizedX = index.toFloat() / (dataPoints.size - 1).coerceAtLeast(1)
+            val normalizedY = 1f - (value / maxVal)
+            
+            // Adjust padding inside canvas
+            val x = width * 0.05f + (normalizedX * width * 0.9f)
+            val y = height * 0.15f + (normalizedY * height * 0.7f)
+            
+            Offset(x, y)
+        }
         
         // Path for background gradient fill under the chart curve
         val fillPath = Path().apply {
@@ -444,10 +447,50 @@ fun AdminHomeTab(
     val totalOrdersCount = orders.size
     val totalGoatsSold = completedOrders.size
 
-    // Dynamic stats fallback to mockup figures if empty
-    val incomeText = if (totalIncome > 0L) formatShortRupiah(totalIncome) else "Rp 12.5jt"
-    val ordersText = if (totalOrdersCount > 0) "$totalOrdersCount Order" else "24 Order"
-    val soldText = if (totalGoatsSold > 0) "$totalGoatsSold Ekor" else "32 Ekor"
+    // Dynamic stats (No mockup fallback)
+    val incomeText = formatShortRupiah(totalIncome)
+    val ordersText = "$totalOrdersCount Order"
+    val soldText = "$totalGoatsSold Ekor"
+
+    // Calculate Last 7 Days Sales Trend
+    val dateFormatter = java.text.SimpleDateFormat("dd MMM", java.util.Locale("id", "ID"))
+    val trendDataMap = remember(completedOrders) {
+        val map = mutableMapOf<String, Float>()
+        val cal = java.util.Calendar.getInstance()
+        for (i in 6 downTo 0) {
+            val dateStr = dateFormatter.format(cal.time)
+            map[dateStr] = 0f
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        }
+        val targetFormat = java.text.SimpleDateFormat("dd MMM yyyy, HH:mm", java.util.Locale("id", "ID"))
+        completedOrders.forEach { order ->
+            try {
+                val date = targetFormat.parse(order.orderDate)
+                if (date != null) {
+                    val formatted = dateFormatter.format(date)
+                    if (map.containsKey(formatted)) {
+                        map[formatted] = map[formatted]!! + order.totalPrice.toFloat()
+                    }
+                }
+            } catch (e: Exception) {}
+        }
+        map.toSortedMap(compareBy { dateFormatter.parse(it) })
+    }
+    val trendLabels = trendDataMap.keys.toList().takeLast(7)
+    val trendValues = trendDataMap.values.toList().takeLast(7).ifEmpty { listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f) }
+
+    // Calculate Best Selling Products
+    val bestSellingProducts = remember(completedOrders) {
+        val counts = mutableMapOf<String, Int>()
+        val names = mutableMapOf<String, String>()
+        completedOrders.forEach { order ->
+            counts[order.goat.id] = counts.getOrDefault(order.goat.id, 0) + 1
+            names[order.goat.id] = order.goat.name
+        }
+        counts.entries.sortedByDescending { it.value }.take(3).map { (id, count) ->
+            Pair(names[id] ?: "Kambing", count)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -582,6 +625,7 @@ fun AdminHomeTab(
                     Spacer(modifier = Modifier.height(18.dp))
                     
                     SalesTrendChart(
+                        dataPoints = trendValues,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(120.dp)
@@ -593,12 +637,10 @@ fun AdminHomeTab(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        val labels = listOf("Sen", "Sel", "Rab", "Kam", "Jum")
-                        labels.forEachIndexed { idx, day ->
-                            val weightVal = if (idx == 0 || idx == labels.size - 1) 0.05f else 0.22f
+                        trendLabels.forEachIndexed { idx, day ->
                             Text(
-                                text = day,
-                                fontSize = 11.sp,
+                                text = day.split(" ").firstOrNull() ?: day,
+                                fontSize = 10.sp,
                                 color = Color.Gray,
                                 fontWeight = FontWeight.Medium
                             )
@@ -627,46 +669,29 @@ fun AdminHomeTab(
                         color = Color.Black
                     )
 
-                    // Card Item 1
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF5F5F5))
-                            .padding(horizontal = 14.dp, vertical = 11.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "1. Kambing Etawa Jantan", fontSize = 13.sp, color = Color.Black)
-                        Text(text = "12 Ekor", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                    }
-
-                    // Card Item 2
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF5F5F5))
-                            .padding(horizontal = 14.dp, vertical = 11.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "2. Kambing Boer Betina", fontSize = 13.sp, color = Color.Black)
-                        Text(text = "8 Ekor", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                    }
-
-                    // Card Item 3
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF5F5F5))
-                            .padding(horizontal = 14.dp, vertical = 11.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "3. Kambing Kacang Muda", fontSize = 13.sp, color = Color.Black)
-                        Text(text = "5 Ekor", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                    if (bestSellingProducts.isEmpty()) {
+                        Text(
+                            text = "Belum ada penjualan bulan ini.",
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            modifier = Modifier.padding(vertical = 10.dp)
+                        )
+                    } else {
+                        bestSellingProducts.forEachIndexed { index, pair ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFFF5F5F5))
+                                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "${index + 1}. ${pair.first}", fontSize = 13.sp, color = Color.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Text(text = "${pair.second} Ekor", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32), modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -680,12 +705,9 @@ fun AdminHomeTab(
                 modifier = Modifier.padding(top = 4.dp)
             )
 
-            // Dynamic or fallback mockup Transactions List
+            // Dynamic Transactions List
             val transactionsList = if (orders.isEmpty()) {
-                listOf(
-                    MockTransaction("#INV-2506015", "28 Jun", "Budi Santoso", "Rp 3.5jt"),
-                    MockTransaction("#INV-2506014", "27 Jun", "Siti Aisyah", "Rp 4.0jt")
-                )
+                emptyList()
             } else {
                 orders.take(3).map { order ->
                     val buyerName = profiles[order.buyerUid]?.get("name") as? String ?: "Pembeli"
@@ -698,52 +720,62 @@ fun AdminHomeTab(
                 }
             }
 
-            transactionsList.forEach { inv ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            if (transactionsList.isEmpty()) {
+                Text(
+                    text = "Belum ada transaksi terbaru.",
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    modifier = Modifier.padding(vertical = 10.dp)
+                )
+            } else {
+                transactionsList.forEach { inv ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Box(
+                        Row(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFE8F5E9)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "💰", fontSize = 20.sp)
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFE8F5E9)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "💰", fontSize = 20.sp)
+                            }
+    
+                            Spacer(modifier = Modifier.width(14.dp))
+    
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = inv.id,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color.Black
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${inv.date} • ${inv.buyer}",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            }
+    
                             Text(
-                                text = inv.id,
+                                text = inv.price,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                                 color = Color.Black
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${inv.date} • ${inv.buyer}",
-                                fontSize = 12.sp,
-                                color = Color.Gray
-                            )
                         }
-
-                        Text(
-                            text = inv.price,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = Color.Black
-                        )
                     }
                 }
             }
@@ -2572,6 +2604,7 @@ fun AdminPesananTab(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+
                     // Check icon circle
                     Box(
                         modifier = Modifier

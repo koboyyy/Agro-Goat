@@ -585,27 +585,7 @@ fun GoatDetailView(
                             )
                         }
                     }
-
-                    // ── Health & Cert Info ──
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Text(
-                                "🛡️ Garansi & Kesehatan",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = Color(0xFF1B5E20)
-                            )
-                            HealthBadgeRow()
-                        }
-                    }
+                    // Health & Cert Info dihilangkan sesuai permintaan user
                 }
             }
         }
@@ -718,36 +698,7 @@ private fun InfoChip(
     }
 }
 
-@Composable
-private fun HealthBadgeRow() {
-    val badges = listOf(
-        "✅ Sehat & Terawat",
-        "💉 Sudah Vaksin",
-        "🌿 Pakan Organik",
-        "📋 Bersertifikat"
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        badges.chunked(2).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                row.forEach { badge ->
-                    Text(
-                        text = badge,
-                        fontSize = 12.sp,
-                        color = Color(0xFF1B5E20),
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.7f))
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
-                }
-            }
-        }
-    }
-}
+
 
 @android.annotation.SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -766,9 +717,9 @@ fun FarmMiniMapView(
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { width:100%; height:100vh; overflow:hidden; }
-  #map { width:100%; height:100vh; }
+  html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; }
+  * { box-sizing:border-box; }
+  #map { width:100%; height:100%; position: absolute; top: 0; left: 0; }
   .leaflet-control-zoom { display:none; }
   .leaflet-control-attribution { display:none !important; }
 </style>
@@ -829,16 +780,22 @@ fun FarmMiniMapView(
 
     var isLoading by remember { mutableStateOf(true) }
 
-    Box(modifier = modifier) {
-        androidx.compose.ui.viewinterop.AndroidView(
-            factory = { ctx ->
-                android.webkit.WebView(ctx).apply {
+    key(locationQuery, lat, lng) {
+        Box(modifier = modifier) {
+            androidx.compose.ui.viewinterop.AndroidView(
+                factory = { ctx ->
+                    android.webkit.WebView(ctx).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.loadWithOverviewMode = true
                     settings.useWideViewPort = true
                     settings.builtInZoomControls = false
                     settings.displayZoomControls = false
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    webChromeClient = android.webkit.WebChromeClient()
                     webViewClient = object : android.webkit.WebViewClient() {
                         override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
                             isLoading = false
@@ -882,4 +839,4 @@ fun FarmMiniMapView(
         }
     }
 }
-
+}

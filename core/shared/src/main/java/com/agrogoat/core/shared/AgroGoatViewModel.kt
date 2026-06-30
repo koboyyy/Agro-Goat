@@ -442,7 +442,14 @@ class AgroGoatViewModel @Inject constructor(
         val updates = mutableMapOf<String, Any>()
         if (name.isNotBlank()) updates["name"] = name
         if (address.isNotBlank()) updates["address"] = address
-        if (updates.isNotEmpty()) db.collection("users").document(uid).update(updates)
+        if (updates.isNotEmpty()) {
+            val email = _userEmail.value.trim().lowercase(java.util.Locale.ROOT)
+            db.collection("users").document(uid).update(updates).addOnSuccessListener {
+                if (email.isNotEmpty()) {
+                    db.collection("users_profiles").document(email).set(updates, com.google.firebase.firestore.SetOptions.merge())
+                }
+            }
+        }
     }
 
     fun updateFullProfile(
@@ -479,8 +486,15 @@ class AgroGoatViewModel @Inject constructor(
         if (locationLng != null) updates["locationLng"] = locationLng
         if (mapsUrl.isNotEmpty()) updates["mapsUrl"] = mapsUrl
         
+        val email = _userEmail.value.trim().lowercase(java.util.Locale.ROOT)
+        
         db.collection("users").document(uid).update(updates)
-            .addOnSuccessListener { onSuccess() }
+            .addOnSuccessListener { 
+                if (email.isNotEmpty()) {
+                    db.collection("users_profiles").document(email).set(updates, com.google.firebase.firestore.SetOptions.merge())
+                }
+                onSuccess() 
+            }
             .addOnFailureListener { e -> onFailure(e.message ?: "Gagal memperbarui profil") }
     }
 

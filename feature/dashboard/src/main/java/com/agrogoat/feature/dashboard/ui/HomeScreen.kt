@@ -346,13 +346,14 @@ fun HomeScreen(
 
         HomeSubScreen.DETAIL -> {
             selectedGoat?.let { goat ->
-                val sellerProfile = goat.sellerUid?.let { usersProfiles[it] } 
-                    ?: goat.sellerEmail?.let { email -> usersProfiles.values.find { (it["email"] as? String) == email } }
-                
+                val sellerProfile = goat.sellerEmail?.lowercase()?.let { usersProfiles[it] }
+                    ?: goat.sellerUid?.let { usersProfiles[it] }
+                    ?: goat.sellerEmail?.let { email -> usersProfiles.values.find { it["email"] == email } }
+
                 val sellerLocationStr = sellerProfile?.get("address") as? String
                 val sellerMapsUrl = sellerProfile?.get("mapsUrl") as? String
-                val sellerLat = sellerProfile?.get("locationLat") as? Double
-                val sellerLng = sellerProfile?.get("locationLng") as? Double
+                val sellerLat = (sellerProfile?.get("locationLat") as? Number)?.toDouble()
+                val sellerLng = (sellerProfile?.get("locationLng") as? Number)?.toDouble()
 
                 GoatDetailView(
                     goat = goat,
@@ -371,6 +372,7 @@ fun HomeScreen(
                     onChat = {
                         val emailTujuan = goat.sellerEmail?.takeIf { email -> email.isNotBlank() } ?: "admin@agrogoat.com"
                         viewModel.startChatWith(emailTujuan)
+                        viewModel.sendMessage("[PRODUCT_CARD]${goat.id}", recipientUid = emailTujuan)
                         currentSubScreen = HomeSubScreen.HOME
                     },
                     onOrder = {

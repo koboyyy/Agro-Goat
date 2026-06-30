@@ -624,13 +624,14 @@ fun CatalogScreen(
 
                 CatalogSubScreen.DETAIL -> {
                     selectedGoat?.let { goat ->
-                        val sellerProfile = goat.sellerUid?.let { usersProfiles[it] } 
+                        val sellerProfile = goat.sellerEmail?.lowercase()?.let { usersProfiles[it] } 
+                            ?: goat.sellerUid?.let { usersProfiles[it] } 
                             ?: goat.sellerEmail?.let { email -> usersProfiles.values.find { it["email"] == email } }
                         
                         val sellerLocationStr = sellerProfile?.get("address") as? String
                         val sellerMapsUrl = sellerProfile?.get("mapsUrl") as? String
-                        val sellerLat = sellerProfile?.get("locationLat") as? Double
-                        val sellerLng = sellerProfile?.get("locationLng") as? Double
+                        val sellerLat = (sellerProfile?.get("locationLat") as? Number)?.toDouble()
+                        val sellerLng = (sellerProfile?.get("locationLng") as? Number)?.toDouble()
 
                         GoatDetailView(
                             goat = goat,
@@ -649,6 +650,7 @@ fun CatalogScreen(
                             onChat = {
                                 val targetEmail = goat.sellerEmail?.takeIf { it.isNotBlank() } ?: "admin@agrogoat.com"
                                 viewModel.startChatWith(targetEmail)
+                                viewModel.sendMessage("[PRODUCT_CARD]${goat.id}", recipientUid = targetEmail)
                                 currentSubScreen = CatalogSubScreen.LIST
                             },
                             onOrder = {

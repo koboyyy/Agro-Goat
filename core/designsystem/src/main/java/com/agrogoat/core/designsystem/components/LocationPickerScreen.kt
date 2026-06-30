@@ -192,6 +192,11 @@ fun LocationPickerDialog(
                                     settings.useWideViewPort = true
                                     settings.builtInZoomControls = false
                                     settings.displayZoomControls = false
+                                    layoutParams = android.view.ViewGroup.LayoutParams(
+                                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                    webChromeClient = android.webkit.WebChromeClient()
                                     webViewClient = object : WebViewClient() {
                                         override fun onPageFinished(view: WebView?, url: String?) {
                                             isLoading = false
@@ -408,9 +413,9 @@ fun buildMapHtml(initLat: Double, initLng: Double, initAddress: String): String 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { width: 100%; height: 100vh; overflow: hidden; }
-  #map { width: 100%; height: 100vh; }
+  html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+  * { box-sizing: border-box; }
+  #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
   .leaflet-control-attribution { display: none !important; }
   .search-box {
     position: absolute;

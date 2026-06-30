@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agrogoat.core.model.*
 import com.agrogoat.core.designsystem.components.GoatSilhouette
+import com.agrogoat.core.designsystem.components.GoatImage
 import com.agrogoat.core.shared.AgroGoatViewModel
 import com.agrogoat.core.shared.AppTab
 import com.agrogoat.core.shared.ChatScreenState
@@ -428,7 +429,7 @@ fun ChatDetailScreen(
                                 ) {
                                     when {
                                         msg.content.startsWith("[PRODUCT_CARD]") -> {
-                                            ProductAttachment(msg.content.removePrefix("[PRODUCT_CARD]"))
+                                            ProductAttachment(msg.content.removePrefix("[PRODUCT_CARD]"), viewModel)
                                         }
                                         msg.content.startsWith("[BUKTI_TRANSFER]") -> {
                                             TransferProofAttachment(msg.content.removePrefix("[BUKTI_TRANSFER]"))
@@ -473,34 +474,47 @@ fun ChatDetailScreen(
 }
 
 @Composable
-fun ProductAttachment(text: String) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color.White)
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
+fun ProductAttachment(goatId: String, viewModel: AgroGoatViewModel) {
+    val goats by viewModel.goats.collectAsState()
+    val goat = goats.find { it.id == goatId }
+
+    if (goat != null) {
+        Column {
+            Row(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFE8F5E9)),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White)
+                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                GoatSilhouette(Modifier.size(24.dp), Color.Black)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFE8F5E9)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    GoatImage(
+                        imageUri = goat.imageUri,
+                        defaultImageRes = com.agrogoat.core.designsystem.R.drawable.etawa,
+                        contentDescription = goat.name,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = goat.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Black)
+                    val priceStr = "Rp ${java.text.NumberFormat.getNumberInstance(java.util.Locale("id", "ID")).format(goat.price)}"
+                    Text(text = priceStr, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
+                }
             }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = "Kambing Etawa Jantan", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Black)
-                Text(text = "Rp 5.500.000", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
-            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(text = "Halo, apakah produk ini masih tersedia?", fontSize = 14.sp, color = Color.Black)
         }
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(text = text, fontSize = 14.sp, color = Color.Black)
+    } else {
+        Text(text = "[Produk tidak ditemukan]", fontSize = 14.sp, color = Color.Gray, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
     }
 }
 
