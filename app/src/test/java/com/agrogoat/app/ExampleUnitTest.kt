@@ -2,7 +2,7 @@ package com.agrogoat.app
 
 import org.junit.Assert.*
 import org.junit.Test
-import com.agrogoat.app.viewmodel.AgroGoatViewModel
+import com.agrogoat.core.shared.AgroGoatViewModel
 
 class ExampleUnitTest {
   @Test

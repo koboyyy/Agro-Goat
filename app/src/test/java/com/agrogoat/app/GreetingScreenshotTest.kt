@@ -3,7 +3,7 @@ package com.agrogoat.app
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.agrogoat.app.ui.theme.MyApplicationTheme
-import com.agrogoat.app.viewmodel.AgroGoatViewModel
+import com.agrogoat.core.shared.AgroGoatViewModel
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule

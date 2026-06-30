@@ -31,3 +31,7 @@ include(":core:model")
 include(":core:network")
 include(":core:database")
 include(":core:designsystem")
+include(":core:shared")
+
+include(":feature:auth")
+include(":feature:dashboard")

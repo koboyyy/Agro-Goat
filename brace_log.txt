@@ -1,0 +1,481 @@
+121 [ 0] fun MainAppShell(
+122 [ 0] viewModel: AgroGoatViewModel,
+123 [ 0] modifier: Modifier = Modifier
+124 [ 1] ) {
+125 [ 1] val currentTab by viewModel.currentTab.collectAsState()
+126 [ 1] val hideBottomBarFromVM by viewModel.hideBottomBar.collectAsState()
+127 [ 1] 
+128 [ 1] var isCheckingSession by remember { mutableStateOf(true) }
+129 [ 1] var isLoggedIn by remember { mutableStateOf(false) }
+130 [ 1] var lastTab by remember { mutableStateOf(AppTab.BERANDA) }
+131 [ 1] 
+132 [ 2] LaunchedEffect(currentTab) {
+133 [ 2] if (currentTab != AppTab.LACAK_PESANAN &&
+134 [ 2] currentTab != AppTab.PEMBAYARAN &&
+135 [ 2] currentTab != AppTab.NOTIFIKASI &&
+136 [ 2] currentTab != AppTab.INFORMASI_AKUN &&
+137 [ 2] currentTab != AppTab.PENGATURAN &&
+138 [ 3] currentTab != AppTab.UBAH_KATA_SANDI) {
+139 [ 3] lastTab = currentTab
+140 [ 2] }
+141 [ 1] }
+142 [ 1] 
+143 [ 2] if (isLoggedIn && currentTab != AppTab.BERANDA) {
+144 [ 3] androidx.activity.compose.BackHandler {
+145 [ 4] when (currentTab) {
+146 [ 4] AppTab.LACAK_PESANAN -> viewModel.setTab(AppTab.PESANAN)
+147 [ 4] AppTab.PEMBAYARAN -> viewModel.setTab(AppTab.KATALOG)
+148 [ 4] AppTab.NOTIFIKASI -> viewModel.setTab(lastTab)
+149 [ 4] AppTab.INFORMASI_AKUN -> viewModel.setTab(AppTab.PROFIL)
+150 [ 4] AppTab.PENGATURAN -> viewModel.setTab(AppTab.PROFIL)
+151 [ 4] AppTab.UBAH_KATA_SANDI -> viewModel.setTab(AppTab.PENGATURAN)
+152 [ 4] else -> viewModel.setTab(AppTab.BERANDA)
+153 [ 3] }
+154 [ 2] }
+155 [ 1] }
+156 [ 1] 
+157 [ 2] LaunchedEffect(Unit) {
+158 [ 3] val isFirebaseInitialized = try {
+159 [ 3] com.google.firebase.FirebaseApp.getInstance()
+160 [ 3] true
+161 [ 3] } catch (e: Exception) {
+162 [ 3] false
+163 [ 2] }
+164 [ 3] if (isFirebaseInitialized) {
+165 [ 4] try {
+166 [ 4] val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+167 [ 4] val currentUser = auth.currentUser
+168 [ 5] if (currentUser != null && currentUser.email != null) {
+169 [ 5] val email = currentUser.email!!.trim().lowercase(java.util.Locale.ROOT)
+170 [ 5] val database = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+171 [ 5] val getTask = database.collection("users_profiles").document(email).get()
+172 [ 5] var attempts = 0
+173 [ 6] while (!getTask.isComplete && attempts < 100) {
+174 [ 6] kotlinx.coroutines.delay(50)
+175 [ 6] attempts++
+176 [ 5] }
+177 [ 6] if (getTask.isSuccessful && getTask.result != null && getTask.result.exists()) {
+178 [ 6] val data = getTask.result.data
+179 [ 6] val finalName = data?.get("name") as? String ?: (currentUser.displayName ?: email.substringBefore("@"))
+180 [ 6] val finalAddress = data?.get("address") as? String ?: "Bengkalis, Riau"
+181 [ 6] val finalBalance = (data?.get("balance") as? Long) ?: 0L
+182 [ 6] val finalPhone = data?.get("phone") as? String ?: "081299998888"
+183 [ 6] 
+184 [ 6] val lastChosenRole = data?.get("role") as? String
+185 [ 6] val rolesList = data?.get("roles") as? List<String>
+186 [ 7] val finalRoles = when {
+187 [ 7] rolesList != null && rolesList.isNotEmpty() -> rolesList
+188 [ 8] lastChosenRole != null -> {
+189 [ 8] if (lastChosenRole.contains(",")) lastChosenRole.split(",").map { it.trim() } else listOf(lastChosenRole)
+190 [ 7] }
+191 [ 7] else -> listOf("Pedagang")
+192 [ 6] }
+193 [ 7] val chosenRole = if (lastChosenRole != null && finalRoles.contains(lastChosenRole)) {
+194 [ 7] lastChosenRole
+195 [ 7] } else {
+196 [ 7] finalRoles.firstOrNull() ?: "Pedagang"
+197 [ 6] }
+198 [ 6] 
+199 [ 6] viewModel.setUserProfile(
+200 [ 6] name = finalName,
+201 [ 6] address = finalAddress,
+202 [ 6] balance = finalBalance,
+203 [ 6] role = chosenRole,
+204 [ 6] email = email,
+205 [ 6] phone = finalPhone
+206 [ 6] )
+207 [ 6] isLoggedIn = true
+208 [ 6] } else {
+209 [ 6] auth.signOut()
+210 [ 5] }
+211 [ 4] }
+212 [ 4] } catch (e: Exception) {
+213 [ 4] // Ignore session check errors to fall back to login screen
+214 [ 3] }
+215 [ 2] }
+216 [ 2] isCheckingSession = false
+217 [ 1] }
+218 [ 1] 
+219 [ 2] if (isCheckingSession) {
+220 [ 2] Box(
+221 [ 2] modifier = Modifier
+222 [ 2] .fillMaxSize()
+223 [ 2] .background(Color(0xFF1F6E35)),
+224 [ 2] contentAlignment = Alignment.Center
+225 [ 3] ) {
+226 [ 3] Column(
+227 [ 3] horizontalAlignment = Alignment.CenterHorizontally,
+228 [ 3] verticalArrangement = Arrangement.spacedBy(16.dp)
+229 [ 4] ) {
+230 [ 4] CircularProgressIndicator(color = Color.White)
+231 [ 4] Text(
+232 [ 4] text = "Menghubungkan Sesi...",
+233 [ 4] color = Color.White,
+234 [ 4] fontWeight = FontWeight.Bold,
+235 [ 4] fontSize = 14.sp
+236 [ 4] )
+237 [ 3] }
+238 [ 2] }
+239 [ 2] } else {
+240 [ 2] val navController = rememberNavController()
+241 [ 2] 
+242 [ 2] NavHost(
+243 [ 2] navController = navController,
+244 [ 2] startDestination = if (isLoggedIn) "main" else "auth",
+245 [ 2] modifier = Modifier.fillMaxSize()
+246 [ 3] ) {
+247 [ 4] composable("auth") {
+248 [ 4] LoginScreen(
+249 [ 5] onLoginSuccess = {
+250 [ 5] isLoggedIn = true
+251 [ 6] navController.navigate("main") {
+252 [ 6] popUpTo("auth") { inclusive = true }
+253 [ 5] }
+254 [ 4] },
+255 [ 5] onSetUserProfile = { name, address, balance, role, email, phone ->
+256 [ 5] viewModel.setUserProfile(name, address, balance, role, email, phone)
+257 [ 4] }
+258 [ 4] )
+259 [ 3] }
+260 [ 3] 
+261 [ 4] composable("main") {
+262 [ 4] val userRole by viewModel.userRole.collectAsState()
+263 [ 5] if (userRole == "Penjual") {
+264 [ 5] AdminDashboardScreen(
+265 [ 5] viewModel = viewModel,
+266 [ 6] onLogout = {
+267 [ 6] com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+268 [ 6] isLoggedIn = false
+269 [ 6] viewModel.setTab(AppTab.BERANDA)
+270 [ 7] navController.navigate("auth") {
+271 [ 7] popUpTo("main") { inclusive = true }
+272 [ 6] }
+273 [ 5] }
+274 [ 5] )
+275 [ 5] } else {
+276 [ 5] Box(
+277 [ 5] modifier = modifier
+278 [ 5] .fillMaxSize()
+279 [ 5] .background(MaterialTheme.colorScheme.background)
+280 [ 6] ) {
+281 [ 6] // CONTENT AREA with smooth animated switcher transitions
+282 [ 7] Box(modifier = Modifier.fillMaxSize()) {
+283 [ 8] when (currentTab) {
+284 [ 8] AppTab.BERANDA -> HomeScreen(viewModel)
+285 [ 8] AppTab.KATALOG -> CatalogScreen(viewModel)
+286 [ 8] AppTab.CHAT -> ChatScreen(viewModel)
+287 [ 8] AppTab.PESANAN -> OrdersScreen(viewModel)
+288 [ 8] AppTab.PROFIL -> ProfileScreen(
+289 [ 8] viewModel = viewModel,
+290 [ 9] onLogout = {
+291 [ 9] com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+292 [ 9] isLoggedIn = false
+293 [ 9] viewModel.setTab(AppTab.BERANDA)
+294 [ 8] }
+295 [ 8] )
+296 [ 8] AppTab.NOTIFIKASI -> NotificationScreen(viewModel, onBack = { viewModel.setTab(lastTab) })
+297 [ 8] AppTab.PEMBAYARAN -> PaymentScreen(viewModel)
+298 [ 9] AppTab.LACAK_PESANAN -> {
+299 [ 9] val orderToTrack by viewModel.selectedOrderForTracking.collectAsState()
+300 [10] orderToTrack?.let {
+301 [10] TrackingScreen(
+302 [10] order = it,
+303 [10] onBack = { viewModel.setTab(AppTab.PESANAN) }
+304 [10] )
+305 [ 9] }
+306 [ 8] }
+307 [ 8] AppTab.INFORMASI_AKUN -> AccountInfoScreen(viewModel, onBack = { viewModel.setTab(AppTab.PROFIL) })
+308 [ 8] AppTab.PENGATURAN -> SettingsScreen(viewModel, onBack = { viewModel.setTab(AppTab.PROFIL) })
+309 [ 8] AppTab.UBAH_KATA_SANDI -> ChangePasswordScreen(viewModel, onBack = { viewModel.setTab(AppTab.PENGATURAN) })
+310 [ 7] }
+311 [ 6] }
+312 [ 6] 
+313 [ 6] // CUSTOM FLOATING BOTTOM NAVIGATION BAR
+314 [ 6] // Hide if on specific screens to focus on the content
+315 [ 6] val hideNavBar = currentTab == AppTab.LACAK_PESANAN ||
+316 [ 6] currentTab == AppTab.NOTIFIKASI ||
+317 [ 6] currentTab == AppTab.PEMBAYARAN ||
+318 [ 6] currentTab == AppTab.INFORMASI_AKUN ||
+319 [ 6] currentTab == AppTab.PENGATURAN ||
+320 [ 6] currentTab == AppTab.UBAH_KATA_SANDI ||
+321 [ 6] hideBottomBarFromVM
+322 [ 6] 
+323 [ 7] if (!hideNavBar) {
+324 [ 7] val activeColor = MaterialTheme.colorScheme.primary
+325 [ 7] val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.44f)
+326 [ 7] 
+327 [ 7] Card(
+328 [ 7] modifier = Modifier
+329 [ 7] .align(Alignment.BottomCenter)
+330 [ 7] .fillMaxWidth()
+331 [ 7] .windowInsetsPadding(WindowInsets.navigationBars)
+332 [ 7] .padding(horizontal = 0.dp),
+333 [ 7] shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+334 [ 7] colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+335 [ 7] elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+336 [ 8] ) {
+337 [ 8] Row(
+338 [ 8] modifier = Modifier
+339 [ 8] .fillMaxWidth()
+340 [ 8] .height(76.dp)
+341 [ 8] .padding(horizontal = 12.dp),
+342 [ 8] horizontalArrangement = Arrangement.SpaceAround,
+343 [ 8] verticalAlignment = Alignment.CenterVertically
+344 [ 9] ) {
+345 [ 9] // TAB 1: Beranda
+346 [ 9] val isHomeSelected = currentTab == AppTab.BERANDA
+347 [ 9] Surface(
+348 [ 9] modifier = Modifier
+349 [ 9] .weight(1f)
+350 [ 9] .padding(horizontal = 6.dp, vertical = 6.dp),
+351 [ 9] shape = RoundedCornerShape(16.dp),
+352 [ 9] color = if (isHomeSelected)
+353 [ 9] MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+354 [ 9] else
+355 [ 9] Color.Transparent,
+356 [10] onClick = {
+357 [10] viewModel.setTab(AppTab.BERANDA)
+358 [ 9] }
+359 [10] ) {
+360 [10] 
+361 [10] Column(
+362 [10] modifier = Modifier.padding(vertical = 10.dp),
+363 [10] horizontalAlignment = Alignment.CenterHorizontally,
+364 [10] verticalArrangement = Arrangement.Center
+365 [11] ) {
+366 [11] Icon(
+367 [11] imageVector = Icons.Rounded.Home,
+368 [11] contentDescription = "Beranda",
+369 [11] tint = if (isHomeSelected) activeColor else inactiveColor,
+370 [11] modifier = Modifier.size(24.dp)
+371 [11] )
+372 [11] Text(
+373 [11] text = "Beranda",
+374 [11] fontSize = 10.sp,
+375 [11] fontWeight = FontWeight.Bold,
+376 [11] color = if (isHomeSelected) activeColor else inactiveColor
+377 [11] )
+378 [10] }
+379 [ 9] }
+380 [ 9] 
+381 [ 9] // TAB 2: Katalog
+382 [ 9] val isKatalogSelected = currentTab == AppTab.KATALOG
+383 [ 9] Surface(
+384 [ 9] modifier = Modifier
+385 [ 9] .weight(1f)
+386 [ 9] .padding(horizontal = 6.dp, vertical = 6.dp),
+387 [ 9] shape = RoundedCornerShape(16.dp),
+388 [ 9] color = if (isKatalogSelected)
+389 [ 9] MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+390 [ 9] else
+391 [ 9] Color.Transparent,
+392 [10] onClick = {
+393 [10] viewModel.setTab(AppTab.KATALOG)
+394 [ 9] }
+395 [10] ) {
+396 [10] Column(
+397 [10] modifier = Modifier.padding(vertical = 10.dp),
+398 [10] horizontalAlignment = Alignment.CenterHorizontally,
+399 [10] verticalArrangement = Arrangement.Center
+400 [11] ) {
+401 [11] Icon(
+402 [11] imageVector = Icons.Rounded.GridView,
+403 [11] contentDescription = "Katalog",
+404 [11] tint = if (isKatalogSelected) activeColor else inactiveColor,
+405 [11] modifier = Modifier.size(24.dp)
+406 [11] )
+407 [11] Text(
+408 [11] text = "Katalog",
+409 [11] fontSize = 10.sp,
+410 [11] fontWeight = FontWeight.Bold,
+411 [11] color = if (isKatalogSelected) activeColor else inactiveColor
+412 [11] )
+413 [10] }
+414 [ 9] }
+415 [ 9] 
+416 [ 9] 
+417 [ 9] // TAB 3: Chat
+418 [ 9] val isChatSelected = currentTab == AppTab.CHAT
+419 [ 9] Surface(
+420 [ 9] modifier = Modifier
+421 [ 9] .weight(1f)
+422 [ 9] .padding(horizontal = 6.dp, vertical = 6.dp),
+423 [ 9] shape = RoundedCornerShape(16.dp),
+424 [ 9] color = if (isChatSelected)
+425 [ 9] MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+426 [ 9] else
+427 [ 9] Color.Transparent,
+428 [10] onClick = {
+429 [10] viewModel.setTab(AppTab.CHAT)
+430 [ 9] }
+431 [10] ) {
+432 [10] Column(
+433 [10] modifier = Modifier.padding(vertical = 10.dp),
+434 [10] horizontalAlignment = Alignment.CenterHorizontally,
+435 [10] verticalArrangement = Arrangement.Center
+436 [11] ) {
+437 [11] Icon(
+438 [11] imageVector = Icons.Rounded.ChatBubble,
+439 [11] contentDescription = "Chat",
+440 [11] tint = if (isChatSelected) activeColor else inactiveColor,
+441 [11] modifier = Modifier.size(24.dp)
+442 [11] )
+443 [11] Text(
+444 [11] text = "Chat",
+445 [11] fontSize = 10.sp,
+446 [11] fontWeight = FontWeight.Bold,
+447 [11] color = if (isChatSelected) activeColor else inactiveColor
+448 [11] )
+449 [10] }
+450 [ 9] }
+451 [ 9] 
+452 [ 9] 
+453 [ 9] // TAB 4: Pesanan
+454 [ 9] val isPesananSelected = currentTab == AppTab.PESANAN
+455 [ 9] Surface(
+456 [ 9] modifier = Modifier
+457 [ 9] .weight(1f)
+458 [ 9] .padding(horizontal = 6.dp, vertical = 6.dp),
+459 [ 9] shape = RoundedCornerShape(16.dp),
+460 [ 9] color = if (isPesananSelected)
+461 [ 9] MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+462 [ 9] else
+463 [ 9] Color.Transparent,
+464 [10] onClick = {
+465 [10] viewModel.setTab(AppTab.PESANAN)
+466 [ 9] }
+467 [10] ) {
+468 [10] 
+469 [10] Column(
+470 [10] modifier = Modifier.padding(vertical = 10.dp),
+471 [10] horizontalAlignment = Alignment.CenterHorizontally,
+472 [10] verticalArrangement = Arrangement.Center
+473 [11] ) {
+474 [11] Icon(
+475 [11] imageVector = Icons.Rounded.ReceiptLong,
+476 [11] contentDescription = "Pesanan",
+477 [11] tint = if (isPesananSelected) activeColor else inactiveColor,
+478 [11] modifier = Modifier.size(24.dp)
+479 [11] )
+480 [11] Text(
+481 [11] text = "Pesanan",
+482 [11] fontSize = 10.sp,
+483 [11] fontWeight = FontWeight.Bold,
+484 [11] color = if (isPesananSelected) activeColor else inactiveColor
+485 [11] )
+486 [10] }
+487 [ 9] }
+488 [ 9] 
+489 [ 9] // TAB 5: Profil
+490 [ 9] val isProfilSelected = currentTab == AppTab.PROFIL
+491 [ 9] Surface(
+492 [ 9] modifier = Modifier
+493 [ 9] .weight(1f)
+494 [ 9] .padding(horizontal = 6.dp, vertical = 6.dp),
+495 [ 9] shape = RoundedCornerShape(16.dp),
+496 [ 9] color = if (isProfilSelected)
+497 [ 9] MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+498 [ 9] else
+499 [ 9] Color.Transparent,
+500 [10] onClick = {
+501 [10] viewModel.setTab(AppTab.PROFIL)
+502 [ 9] }
+503 [10] ) {
+504 [10] 
+505 [10] Column(
+506 [10] modifier = Modifier.padding(vertical = 10.dp),
+507 [10] horizontalAlignment = Alignment.CenterHorizontally,
+508 [10] verticalArrangement = Arrangement.Center
+509 [11] ) {
+510 [11] Icon(
+511 [11] imageVector = Icons.Rounded.AccountCircle,
+512 [11] contentDescription = "Profil",
+513 [11] tint = if (isProfilSelected) activeColor else inactiveColor,
+514 [11] modifier = Modifier.size(24.dp)
+515 [11] )
+516 [11] Spacer(modifier = Modifier.height(4.dp))
+517 [11] Text(
+518 [11] text = "Profil",
+519 [11] fontSize = 10.sp,
+520 [11] fontWeight = FontWeight.Bold,
+521 [11] color = if (isProfilSelected) activeColor else inactiveColor
+522 [11] )
+523 [10] }
+524 [ 9] }
+525 [ 8] }
+526 [ 7] }
+527 [ 6] }
+528 [ 5] }
+529 [ 4] }
+530 [ 3] }
+531 [ 2] }
+532 [ 2] 
+533 [ 2] @Composable
+534 [ 2] fun OfflineScreen(
+535 [ 2] onRetry: () -> Unit,
+536 [ 2] modifier: Modifier = Modifier
+537 [ 3] ) {
+538 [ 3] Box(
+539 [ 3] modifier = modifier
+540 [ 3] .fillMaxSize()
+541 [ 3] .background(Color(0xFFF4F6F4)),
+542 [ 3] contentAlignment = Alignment.Center
+543 [ 4] ) {
+544 [ 4] Card(
+545 [ 4] modifier = Modifier
+546 [ 4] .fillMaxWidth()
+547 [ 4] .padding(horizontal = 32.dp)
+548 [ 4] .shadow(12.dp, RoundedCornerShape(24.dp)),
+549 [ 4] shape = RoundedCornerShape(24.dp),
+550 [ 4] colors = CardDefaults.cardColors(containerColor = Color.White)
+551 [ 5] ) {
+552 [ 5] Column(
+553 [ 5] modifier = Modifier.padding(24.dp),
+554 [ 5] horizontalAlignment = Alignment.CenterHorizontally,
+555 [ 5] verticalArrangement = Arrangement.spacedBy(16.dp)
+556 [ 6] ) {
+557 [ 6] Box(
+558 [ 6] modifier = Modifier
+559 [ 6] .size(64.dp)
+560 [ 6] .clip(CircleShape)
+561 [ 6] .background(Color(0xFFFFEBEE)),
+562 [ 6] contentAlignment = Alignment.Center
+563 [ 7] ) {
+564 [ 7] Text("⚠️", fontSize = 32.sp)
+565 [ 6] }
+566 [ 6] 
+567 [ 6] Text(
+568 [ 6] text = "Koneksi Terputus",
+569 [ 6] fontWeight = FontWeight.Bold,
+570 [ 6] fontSize = 20.sp,
+571 [ 6] color = Color.Black,
+572 [ 6] textAlign = TextAlign.Center
+573 [ 6] )
+574 [ 6] 
+575 [ 6] Text(
+576 [ 6] text = "Aplikasi ini memerlukan koneksi internet untuk dapat diakses. Harap periksa jaringan internet Anda dan coba lagi.",
+577 [ 6] fontSize = 13.sp,
+578 [ 6] color = Color.Gray,
+579 [ 6] textAlign = TextAlign.Center,
+580 [ 6] lineHeight = 18.sp
+581 [ 6] )
+582 [ 6] 
+583 [ 6] Button(
+584 [ 6] onClick = onRetry,
+585 [ 6] colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6E35)),
+586 [ 6] shape = RoundedCornerShape(12.dp),
+587 [ 6] modifier = Modifier
+588 [ 6] .fillMaxWidth()
+589 [ 6] .height(48.dp)
+590 [ 7] ) {
+591 [ 7] Text(
+592 [ 7] text = "Coba Lagi",
+593 [ 7] fontWeight = FontWeight.Bold,
+594 [ 7] color = Color.White,
+595 [ 7] fontSize = 14.sp
+596 [ 7] )
+597 [ 6] }
+598 [ 5] }
+599 [ 4] }
+600 [ 3] }
+601 [ 2] }

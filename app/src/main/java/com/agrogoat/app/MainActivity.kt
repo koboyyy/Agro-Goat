@@ -33,10 +33,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.agrogoat.app.ui.screens.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.agrogoat.feature.dashboard.ui.*
+import com.agrogoat.feature.auth.LoginScreen
 import com.agrogoat.app.ui.theme.MyApplicationTheme
-import com.agrogoat.app.viewmodel.AppTab
-import com.agrogoat.app.viewmodel.AgroGoatViewModel
+import com.agrogoat.core.shared.AppTab
+import com.agrogoat.core.shared.AgroGoatViewModel
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.ChatBubble
@@ -52,6 +56,9 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.compose.ui.draw.shadow
 
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val viewModel: AgroGoatViewModel by viewModels()
 
@@ -229,30 +236,50 @@ fun MainAppShell(
                 )
             }
         }
-    } else if (!isLoggedIn) {
-        LoginScreen(
-            viewModel = viewModel,
-            onLoginSuccess = { isLoggedIn = true }
-        )
     } else {
-        val userRole by viewModel.userRole.collectAsState()
-        if (userRole == "Penjual") {
-            AdminDashboardScreen(
-                viewModel = viewModel,
-                onLogout = {
-                    com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
-                    isLoggedIn = false
-                    viewModel.setTab(AppTab.BERANDA)
-                }
-            )
-        } else {
-            Box(
-                modifier = modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-            ) {
-                // CONTENT AREA with smooth animated switcher transitions
-                Box(modifier = Modifier.fillMaxSize()) {
+        val navController = rememberNavController()
+        
+        NavHost(
+            navController = navController,
+            startDestination = if (isLoggedIn) "main" else "auth",
+            modifier = Modifier.fillMaxSize()
+        ) {
+            composable("auth") {
+                LoginScreen(
+                    onLoginSuccess = { 
+                        isLoggedIn = true 
+                        navController.navigate("main") {
+                            popUpTo("auth") { inclusive = true }
+                        }
+                    },
+                    onSetUserProfile = { name, address, balance, role, email, phone ->
+                        viewModel.setUserProfile(name, address, balance, role, email, phone)
+                    }
+                )
+            }
+            
+            composable("main") {
+                val userRole by viewModel.userRole.collectAsState()
+                if (userRole == "Penjual") {
+                    AdminDashboardScreen(
+                        viewModel = viewModel,
+                        onLogout = {
+                            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                            isLoggedIn = false
+                            viewModel.setTab(AppTab.BERANDA)
+                            navController.navigate("auth") {
+                                popUpTo("main") { inclusive = true }
+                            }
+                        }
+                    )
+                } else {
+                    Box(
+                        modifier = modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    ) {
+                        // CONTENT AREA with smooth animated switcher transitions
+                        Box(modifier = Modifier.fillMaxSize()) {
                     when (currentTab) {
                         AppTab.BERANDA -> HomeScreen(viewModel)
                         AppTab.KATALOG -> CatalogScreen(viewModel)
@@ -495,14 +522,14 @@ fun MainAppShell(
                                     )
                                 }
                             }
-
-
                         }
                     }
                 }
-            }
+        }
+}
         }
     }
+}
 }
 
 @Composable

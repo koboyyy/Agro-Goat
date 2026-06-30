@@ -7,6 +7,9 @@ plugins {
 
   //firebase
   alias(libs.plugins.google.gms.google.services)
+  
+  // hilt
+  alias(libs.plugins.hilt.android)
 }
 
 android {
@@ -67,8 +70,21 @@ secrets {
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  
+  // Core Modules
+  implementation(project(":core:model"))
+  implementation(project(":core:network"))
+  implementation(project(":core:database"))
+    implementation(project(":core:shared"))
+    implementation(project(":core:designsystem"))
+  
+  implementation(project(":feature:auth"))
+  implementation(project(":feature:dashboard"))
+
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
+  implementation(libs.androidx.navigation.compose)
+  implementation(libs.androidx.hilt.navigation.compose)
   // implementation(libs.androidx.camera.camera2)
   // implementation(libs.androidx.camera.core)
   // implementation(libs.androidx.camera.lifecycle)
@@ -84,7 +100,6 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
-  // implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   // implementation(libs.coil.compose)
@@ -124,4 +139,8 @@ dependencies {
   implementation(libs.firebase.auth)
   implementation(libs.firebase.firestore)
   implementation(libs.play.services.auth)
+
+  // Hilt
+  implementation(libs.hilt.android)
+  "ksp"(libs.hilt.compiler)
 }

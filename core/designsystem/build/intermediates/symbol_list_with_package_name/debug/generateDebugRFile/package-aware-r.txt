@@ -1,0 +1,9 @@
+com.agrogoat.core.designsystem
+drawable banner_agro_goat
+drawable burawa
+drawable etawa
+drawable icon_kambing_kategori_betina
+drawable icon_kambing_kategori_jantan
+drawable icon_kategori_semua
+drawable kacang
+drawable logo

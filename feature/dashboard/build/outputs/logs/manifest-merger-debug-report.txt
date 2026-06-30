@@ -1,0 +1,15 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml:2:1-54
+INJECTED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml:2:1-54
+	package
+		ADDED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml:2:11-51
+		INJECTED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml
+uses-sdk
+INJECTED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml
+INJECTED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/evo/Desktop/Agro-Goat/feature/dashboard/src/main/AndroidManifest.xml
