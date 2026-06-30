@@ -67,6 +67,15 @@ class AgroGoatViewModel : ViewModel() {
     private val _userPhotoUrl = MutableStateFlow("")
     val userPhotoUrl: StateFlow<String> = _userPhotoUrl.asStateFlow()
 
+    private val _userLocationLat = MutableStateFlow<Double?>(null)
+    val userLocationLat: StateFlow<Double?> = _userLocationLat.asStateFlow()
+
+    private val _userLocationLng = MutableStateFlow<Double?>(null)
+    val userLocationLng: StateFlow<Double?> = _userLocationLng.asStateFlow()
+
+    private val _userMapsUrl = MutableStateFlow("")
+    val userMapsUrl: StateFlow<String> = _userMapsUrl.asStateFlow()
+
     // Data lists
     private val _goats = MutableStateFlow<List<GoatItem>>(emptyList())
     val goats: StateFlow<List<GoatItem>> = _goats.asStateFlow()
@@ -272,6 +281,9 @@ class AgroGoatViewModel : ViewModel() {
             _userFarmName.value = snapshot.getString("farmName") ?: ""
             _userBio.value = snapshot.getString("bio") ?: ""
             _userPhotoUrl.value = snapshot.getString("photoUrl") ?: ""
+            _userLocationLat.value = snapshot.getDouble("locationLat")
+            _userLocationLng.value = snapshot.getDouble("locationLng")
+            _userMapsUrl.value = snapshot.getString("mapsUrl") ?: ""
             
             val serverTs = snapshot.getTimestamp("lastSeenTimestamp")
             if (serverTs != null && !snapshot.metadata.hasPendingWrites()) {
@@ -435,6 +447,9 @@ class AgroGoatViewModel : ViewModel() {
         bio: String,
         phone: String,
         photoUrl: String?,
+        locationLat: Double? = null,
+        locationLng: Double? = null,
+        mapsUrl: String = "",
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
@@ -455,6 +470,9 @@ class AgroGoatViewModel : ViewModel() {
         if (photoUrl != null) {
             updates["photoUrl"] = photoUrl
         }
+        if (locationLat != null) updates["locationLat"] = locationLat
+        if (locationLng != null) updates["locationLng"] = locationLng
+        if (mapsUrl.isNotEmpty()) updates["mapsUrl"] = mapsUrl
         
         db.collection("users").document(uid).update(updates)
             .addOnSuccessListener { onSuccess() }
@@ -818,7 +836,9 @@ class AgroGoatViewModel : ViewModel() {
 
     // --- GOAT FUNCTIONS ---
     fun addGoatItem(goat: GoatItem) {
-        db.collection("goats").document(goat.id).set(goat.toMap())
+        val uid = auth.currentUser?.uid
+        val finalGoat = if (uid != null) goat.copy(sellerUid = uid) else goat
+        db.collection("goats").document(finalGoat.id).set(finalGoat.toMap())
     }
 
     fun updateGoatItem(goat: GoatItem) {

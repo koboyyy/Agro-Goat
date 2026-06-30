@@ -98,6 +98,10 @@ fun CatalogScreen(
     var buyerEmail by remember { mutableStateOf("") }
     var buyerNotes by remember { mutableStateOf("") }
 
+    // Seller info for detail screen
+    val sellerNameForDetail by viewModel.userName.collectAsState()
+    val sellerPhotoForDetail by viewModel.userPhotoUrl.collectAsState()
+
     LaunchedEffect(currentUserName, currentUserPhone, currentUserEmail) {
         if (buyerName.isBlank() && currentUserName.isNotEmpty()) {
             buyerName = currentUserName
@@ -125,6 +129,7 @@ fun CatalogScreen(
 
     // Collect list parameters from VM for the list sub-screen
     val goats by viewModel.goats.collectAsState()
+    val usersProfiles by viewModel.usersProfiles.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val currentSort by viewModel.catalogSort.collectAsState()
     val showFavsOnly by viewModel.showFavoritesOnly.collectAsState()
@@ -617,39 +622,39 @@ fun CatalogScreen(
                 }
 
                 CatalogSubScreen.DETAIL -> {
-
                     selectedGoat?.let { goat ->
+                        val sellerProfile = goat.sellerUid?.let { usersProfiles[it] } 
+                            ?: goat.sellerEmail?.let { email -> usersProfiles.values.find { it["email"] == email } }
+                        
+                        val sellerLocationStr = sellerProfile?.get("address") as? String
+                        val sellerMapsUrl = sellerProfile?.get("mapsUrl") as? String
+                        val sellerLat = sellerProfile?.get("locationLat") as? Double
+                        val sellerLng = sellerProfile?.get("locationLng") as? Double
 
                         GoatDetailView(
-
                             goat = goat,
-
+                            sellerName = sellerNameForDetail,
+                            sellerPhotoUrl = sellerPhotoForDetail,
+                            sellerLocationStr = sellerLocationStr,
+                            sellerMapsUrl = sellerMapsUrl,
+                            sellerLat = sellerLat,
+                            sellerLng = sellerLng,
                             onBack = {
-                                currentSubScreen =
-                                    CatalogSubScreen.LIST
+                                currentSubScreen = CatalogSubScreen.LIST
                             },
-
                             onToggleFav = {
                                 viewModel.toggleFavorite(goat.id)
                             },
-
                             onChat = {
                                 val targetEmail = if (!goat.sellerEmail.isNullOrBlank()) goat.sellerEmail else "admin@agrogoat.com"
                                 viewModel.startChatWith(targetEmail)
                                 currentSubScreen = CatalogSubScreen.LIST
                             },
-
                             onOrder = {
-
-                                currentSubScreen =
-                                    CatalogSubScreen.BOOKING_STEP1
-
+                                currentSubScreen = CatalogSubScreen.BOOKING_STEP1
                             }
-
                         )
-
                     }
-
                 }
                 CatalogSubScreen.BOOKING_STEP1 -> {
                     selectedGoat?.let { goat ->

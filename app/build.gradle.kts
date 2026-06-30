@@ -96,6 +96,7 @@ dependencies {
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
+  implementation("com.google.android.gms:play-services-location:21.3.0")
   implementation(libs.retrofit)
     implementation(libs.androidx.compose.foundation)
     testImplementation(libs.androidx.compose.ui.test.junit4)

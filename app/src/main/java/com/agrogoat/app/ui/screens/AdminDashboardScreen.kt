@@ -71,6 +71,7 @@ fun AdminDashboardScreen(
     modifier: Modifier = Modifier
 ) {
     var currentTab by remember { mutableStateOf(AdminTab.HOME) }
+    var isAddingGoat by remember { mutableStateOf(false) }
     
     // Admin state
     var selectedGoatForDetail by remember { mutableStateOf<GoatItem?>(null) }
@@ -175,10 +176,15 @@ fun AdminDashboardScreen(
                             viewModel = viewModel,
                             onGoatClick = { selectedGoatForDetail = it },
                             onEditClick = { selectedGoatForEdit = it },
-                            onAddClick = { currentTab = AdminTab.JUAL }
+                            onAddClick = {
+                                currentTab = AdminTab.JUAL
+                                isAddingGoat = true
+                            }
                         )
                         AdminTab.JUAL -> AdminJualTab(
                             viewModel = viewModel,
+                            isAddingGoat = isAddingGoat,
+                            onIsAddingGoatChange = { isAddingGoat = it },
                             onEditClick = { selectedGoatForEdit = it },
                             onSave = { newGoat ->
                                 val goatWithOwner = newGoat.copy(sellerEmail = currentUserEmail)
@@ -1010,20 +1016,20 @@ fun AdminDataTab(
 @Composable
 fun AdminJualTab(
     viewModel: AgroGoatViewModel,
+    isAddingGoat: Boolean,
+    onIsAddingGoatChange: (Boolean) -> Unit,
     onEditClick: (GoatItem) -> Unit,
     onSave: (GoatItem) -> Unit,
     onCancel: () -> Unit
 ) {
-    var isAddingGoat by remember { mutableStateOf(false) }
-
     if (isAddingGoat) {
         AddGoatForm(
             onSave = { newGoat ->
                 onSave(newGoat)
-                isAddingGoat = false
+                onIsAddingGoatChange(false)
             },
             onCancel = {
-                isAddingGoat = false
+                onIsAddingGoatChange(false)
             }
         )
     } else {
@@ -1149,7 +1155,7 @@ fun AdminJualTab(
             containerColor = Color(0xFFF5F6F5),
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { isAddingGoat = true },
+                    onClick = { onIsAddingGoatChange(true) },
                     containerColor = Color(0xFF2E7D32),
                     contentColor = Color.White,
                     shape = CircleShape,

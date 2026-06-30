@@ -2,6 +2,8 @@ package com.agrogoat.app.ui.screens
 import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.outlined.*
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -16,6 +18,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +54,9 @@ fun AdminProfilScreen(
     val userBio by viewModel.userBio.collectAsState()
     val userPhone by viewModel.userPhone.collectAsState()
     val userPhotoUrl by viewModel.userPhotoUrl.collectAsState()
+    val userLocationLat by viewModel.userLocationLat.collectAsState()
+    val userLocationLng by viewModel.userLocationLng.collectAsState()
+    val userMapsUrl by viewModel.userMapsUrl.collectAsState()
 
     val context = LocalContext.current
 
@@ -64,16 +71,18 @@ fun AdminProfilScreen(
     var editPhoneInput by remember { mutableStateOf(userPhone) }
     var editPhotoUriStr by remember { mutableStateOf<String?>(userPhotoUrl) }
     var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var editLocationLat by remember { mutableStateOf<Double?>(userLocationLat) }
+    var editLocationLng by remember { mutableStateOf<Double?>(userLocationLng) }
+    var editMapsUrl by remember { mutableStateOf(userMapsUrl) }
+
+    // Map picker state
+    var showLocationPicker by remember { mutableStateOf(false) }
 
     // Dialog Modal states
     var showSuccessModal by remember { mutableStateOf(false) }
     var showFailureModal by remember { mutableStateOf(false) }
     var failureReason by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
-
-    // Dropdown list state
-    var locationExpanded by remember { mutableStateOf(false) }
-    val locationList = listOf("Bengkalis, Riau", "Pekanbaru, Riau", "Dumai, Riau", "Siak, Riau", "Medan, Sumut")
 
     // Launcher for changing photo
     val launcher = rememberLauncherForActivityResult(
@@ -96,7 +105,7 @@ fun AdminProfilScreen(
     }
 
     // Sync form inputs when viewmodel state changes or when entering edit mode
-    LaunchedEffect(isEditing, userName, userFarmName, userAddress, userBio, userPhone, userPhotoUrl) {
+    LaunchedEffect(isEditing, userName, userFarmName, userAddress, userBio, userPhone, userPhotoUrl, userLocationLat, userLocationLng, userMapsUrl) {
         if (isEditing) {
             editNameInput = userName
             editFarmNameInput = userFarmName
@@ -104,6 +113,9 @@ fun AdminProfilScreen(
             editBioInput = userBio
             editPhoneInput = userPhone
             editPhotoUriStr = userPhotoUrl
+            editLocationLat = userLocationLat
+            editLocationLng = userLocationLng
+            editMapsUrl = userMapsUrl
             bitmap = null
         }
     }
@@ -252,36 +264,74 @@ fun AdminProfilScreen(
                             )
                         }
 
-                        // Lokasi Peternakan (Dropdown Chevron)
+                        // Lokasi Peternakan (Maps Picker)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Lokasi Peternakan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
-                                    value = editAddressInput,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(10.dp),
-                                    trailingIcon = {
-                                        IconButton(onClick = { locationExpanded = true }) {
-                                            Icon(imageVector = Icons.Outlined.ArrowDropDown, contentDescription = null, tint = Color.DarkGray)
-                                        }
-                                    }
-                                )
-                                DropdownMenu(
-                                    expanded = locationExpanded,
-                                    onDismissRequest = { locationExpanded = false }
-                                ) {
-                                    locationList.forEach { loc ->
-                                        DropdownMenuItem(
-                                            text = { Text(loc) },
-                                            onClick = {
-                                                editAddressInput = loc
-                                                locationExpanded = false
-                                            }
+                            
+                            // Address input field (read-only, opens map picker)
+                            OutlinedTextField(
+                                value = editAddressInput,
+                                onValueChange = { editAddressInput = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                placeholder = { Text("Ketuk ikon peta untuk pilih lokasi") },
+                                singleLine = true,
+                                trailingIcon = {
+                                    IconButton(onClick = { showLocationPicker = true }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.LocationOn,
+                                            contentDescription = "Buka Maps",
+                                            tint = Color(0xFF2E7D32)
                                         )
                                     }
                                 }
+                            )
+                            
+                            // Show coordinates if location picked from map
+                            if (editLocationLat != null && editLocationLng != null) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFE8F5E9))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Map,
+                                        contentDescription = null,
+                                        tint = Color(0xFF2E7D32),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "📍 %.5f, %.5f".format(editLocationLat, editLocationLng),
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF2E7D32),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                            
+                            // Quick pick button
+                            OutlinedButton(
+                                onClick = { showLocationPicker = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2E7D32)),
+                                border = BorderStroke(1.dp, Color(0xFF4CAF50))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Map,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (editLocationLat != null) "Ubah Lokasi di Maps 🗺️" else "Pilih Lokasi di Maps 🗺️",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
 
@@ -356,6 +406,9 @@ fun AdminProfilScreen(
                                     bio = editBioInput,
                                     phone = editPhoneInput,
                                     photoUrl = photoUrlStr,
+                                    locationLat = editLocationLat,
+                                    locationLng = editLocationLng,
+                                    mapsUrl = editMapsUrl,
                                     onSuccess = {
                                         isSaving = false
                                         showSuccessModal = true
@@ -654,6 +707,94 @@ fun AdminProfilScreen(
                         }
                     }
 
+                    // Location Maps Card
+                    if (userAddress.isNotEmpty() || userLocationLat != null) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.LocationOn,
+                                        contentDescription = null,
+                                        tint = Color(0xFF2E7D32),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Lokasi Peternakan",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = Color.Black
+                                    )
+                                }
+                                Text(
+                                    text = userAddress.ifEmpty { "Lokasi belum diatur" },
+                                    fontSize = 13.sp,
+                                    color = Color.DarkGray,
+                                    lineHeight = 18.sp
+                                )
+                                if (userLocationLat != null && userLocationLng != null) {
+                                    Text(
+                                        text = "📍 %.5f, %.5f".format(userLocationLat, userLocationLng),
+                                        fontSize = 11.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                                // Button to open Google Maps
+                                val mapsLink = userMapsUrl.ifEmpty {
+                                    if (userLocationLat != null && userLocationLng != null)
+                                        "https://www.google.com/maps?q=$userLocationLat,$userLocationLng"
+                                    else if (userAddress.isNotEmpty())
+                                        "https://www.google.com/maps/search/${Uri.encode(userAddress)}"
+                                    else ""
+                                }
+                                if (mapsLink.isNotEmpty()) {
+                                    Button(
+                                        onClick = {
+                                            try {
+                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(mapsLink))
+                                                intent.setPackage("com.google.android.apps.maps")
+                                                if (intent.resolveActivity(context.packageManager) != null) {
+                                                    context.startActivity(intent)
+                                                } else {
+                                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(mapsLink)))
+                                                }
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Tidak dapat membuka Maps", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Map,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Buka di Google Maps",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Action buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -700,6 +841,23 @@ fun AdminProfilScreen(
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }
+    }
+
+    // LocationPickerDialog
+    if (showLocationPicker) {
+        LocationPickerDialog(
+            initialAddress = editAddressInput,
+            initialLat = editLocationLat,
+            initialLng = editLocationLng,
+            onLocationPicked = { picked ->
+                editAddressInput = picked.address
+                editLocationLat = picked.lat
+                editLocationLng = picked.lng
+                editMapsUrl = picked.mapsUrl
+                showLocationPicker = false
+            },
+            onDismiss = { showLocationPicker = false }
+        )
     }
 
     // SUCCESS DIALOG (Screenshot 1)
