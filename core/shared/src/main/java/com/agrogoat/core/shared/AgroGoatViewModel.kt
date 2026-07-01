@@ -749,6 +749,23 @@ class AgroGoatViewModel @Inject constructor(
     }
 
     // --- CHAT NAVIGATION HELPERS ---
+    private val _returnTabAfterChat = MutableStateFlow<AppTab?>(null)
+    val returnTabAfterChat = _returnTabAfterChat.asStateFlow()
+
+    fun setReturnTabAfterChat(tab: AppTab?) {
+        _returnTabAfterChat.value = tab
+    }
+
+    fun goBackFromChatDetail() {
+        val returnTab = _returnTabAfterChat.value
+        if (returnTab != null) {
+            _returnTabAfterChat.value = null
+            setTab(returnTab)
+        } else {
+            goBackToChatList()
+        }
+    }
+
     fun setChatScreenState(state: ChatScreenState) {
         _chatScreenState.value = state
         _hideBottomBar.value = (state == ChatScreenState.DETAIL)

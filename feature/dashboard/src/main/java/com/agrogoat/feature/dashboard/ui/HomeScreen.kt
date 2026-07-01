@@ -368,9 +368,9 @@ fun HomeScreen(
                     },
                     onChat = {
                         val emailTujuan = goat.sellerEmail?.takeIf { email -> email.isNotBlank() } ?: "admin@agrogoat.com"
+                        viewModel.setReturnTabAfterChat(AppTab.BERANDA)
                         viewModel.startChatWith(emailTujuan)
                         viewModel.sendMessage("[PRODUCT_CARD]${goat.id}", recipientUid = emailTujuan)
-                        currentSubScreen = HomeSubScreen.HOME
                     },
                     onOrder = {
                         currentSubScreen = HomeSubScreen.BOOKING_STEP1

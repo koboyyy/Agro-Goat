@@ -649,9 +649,9 @@ fun CatalogScreen(
                             },
                             onChat = {
                                 val targetEmail = goat.sellerEmail?.takeIf { it.isNotBlank() } ?: "admin@agrogoat.com"
+                                viewModel.setReturnTabAfterChat(AppTab.KATALOG)
                                 viewModel.startChatWith(targetEmail)
                                 viewModel.sendMessage("[PRODUCT_CARD]${goat.id}", recipientUid = targetEmail)
-                                currentSubScreen = CatalogSubScreen.LIST
                             },
                             onOrder = {
                                 currentSubScreen = CatalogSubScreen.BOOKING_STEP1

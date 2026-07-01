@@ -65,7 +65,7 @@ fun ChatScreen(
 
     if (currentScreenState == ChatScreenState.DETAIL) {
         androidx.activity.compose.BackHandler {
-            viewModel.goBackToChatList()
+            viewModel.goBackFromChatDetail()
         }
     }
 
@@ -92,7 +92,7 @@ fun ChatScreen(
                     chatRoom = room,
                     viewModel = viewModel,
                     onBackClick = {
-                        viewModel.goBackToChatList()
+                        viewModel.goBackFromChatDetail()
                     },
                     modifier = modifier
                 )
