@@ -34,11 +34,46 @@ enum class CatalogSort {
     TERBARU, HARGA_RENDAH, HARGA_TINGGI, BOBOT_TERBESAR
 }
 
+enum class AppSubScreen {
+    LIST,
+    DETAIL,
+    BOOKING_STEP1,
+    BOOKING_STEP2,
+    BOOKING_STEP3,
+    BOOKING_SUCCESS
+}
+
 @HiltViewModel
 class AgroGoatViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     val db: FirebaseFirestore
 ) : ViewModel() {
+
+    private val _homeSubScreen = MutableStateFlow(AppSubScreen.LIST)
+    val homeSubScreen = _homeSubScreen.asStateFlow()
+
+    private val _homeSelectedGoat = MutableStateFlow<GoatItem?>(null)
+    val homeSelectedGoat = _homeSelectedGoat.asStateFlow()
+
+    fun setHomeSubScreen(screen: AppSubScreen) {
+        _homeSubScreen.value = screen
+    }
+    fun setHomeSelectedGoat(goat: GoatItem?) {
+        _homeSelectedGoat.value = goat
+    }
+
+    private val _catalogSubScreen = MutableStateFlow(AppSubScreen.LIST)
+    val catalogSubScreen = _catalogSubScreen.asStateFlow()
+
+    private val _catalogSelectedGoat = MutableStateFlow<GoatItem?>(null)
+    val catalogSelectedGoat = _catalogSelectedGoat.asStateFlow()
+
+    fun setCatalogSubScreen(screen: AppSubScreen) {
+        _catalogSubScreen.value = screen
+    }
+    fun setCatalogSelectedGoat(goat: GoatItem?) {
+        _catalogSelectedGoat.value = goat
+    }
 
     // Auth State
     private val _currentUser = MutableStateFlow<FirebaseUser?>(auth.currentUser)
@@ -1070,6 +1105,10 @@ class AgroGoatViewModel @Inject constructor(
         _chatScreenState.value = ChatScreenState.LIST
         _selectedChatRoom.value = null
         _activeChatRoomId.value = null
+        _homeSubScreen.value = AppSubScreen.LIST
+        _homeSelectedGoat.value = null
+        _catalogSubScreen.value = AppSubScreen.LIST
+        _catalogSelectedGoat.value = null
     }
 
     override fun onCleared() {

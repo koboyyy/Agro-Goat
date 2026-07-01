@@ -66,15 +66,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.agrogoat.core.designsystem.components.detail.GoatDetailView
 import com.agrogoat.core.shared.AppTab
+import com.agrogoat.core.shared.AppSubScreen
 
-enum class CatalogSubScreen {
-    LIST,
-    DETAIL,
-    BOOKING_STEP1,
-    BOOKING_STEP2,
-    BOOKING_STEP3,
-    BOOKING_SUCCESS
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,8 +80,8 @@ fun CatalogScreen(
     val clipboardManager = LocalClipboardManager.current
 
     // Sub-Screen Router
-    var currentSubScreen by remember { mutableStateOf(CatalogSubScreen.LIST) }
-    var selectedGoat by remember { mutableStateOf<GoatItem?>(null) }
+    val currentSubScreen by viewModel.catalogSubScreen.collectAsState()
+    val selectedGoat by viewModel.catalogSelectedGoat.collectAsState()
 
     // Booking Form Input States
     val currentUserName by viewModel.userName.collectAsState()
@@ -124,7 +118,7 @@ fun CatalogScreen(
 
     LaunchedEffect(currentSubScreen, currentTab) {
         if (currentTab == AppTab.KATALOG) {
-            viewModel.setHideBottomBar(currentSubScreen != CatalogSubScreen.LIST)
+            viewModel.setHideBottomBar(currentSubScreen != AppSubScreen.LIST)
         }
     }
 
@@ -220,7 +214,7 @@ fun CatalogScreen(
     ) {
         Crossfade(targetState = currentSubScreen, label = "subscreen_router") { subScreen ->
             when (subScreen) {
-                CatalogSubScreen.LIST -> {
+                AppSubScreen.LIST -> {
                     Scaffold(
                         modifier = Modifier.fillMaxSize(),
                         topBar = {
@@ -610,8 +604,8 @@ fun CatalogScreen(
                                         goat = goat,
                                         onFavoriteToggle = { viewModel.toggleFavorite(goat.id) },
                                         onClick = {
-                                            selectedGoat = goat
-                                            currentSubScreen = CatalogSubScreen.DETAIL
+                                            viewModel.setCatalogSelectedGoat(goat)
+                                            viewModel.setCatalogSubScreen(AppSubScreen.DETAIL)
                                         }
                                     )
                                 }
@@ -622,7 +616,7 @@ fun CatalogScreen(
 
                 }
 
-                CatalogSubScreen.DETAIL -> {
+                AppSubScreen.DETAIL -> {
                     selectedGoat?.let { goat ->
                         val sellerProfile = goat.sellerEmail?.lowercase()?.let { usersProfiles[it] } 
                             ?: goat.sellerUid?.let { usersProfiles[it] } 
@@ -642,7 +636,7 @@ fun CatalogScreen(
                             sellerLat = sellerLat,
                             sellerLng = sellerLng,
                             onBack = {
-                                currentSubScreen = CatalogSubScreen.LIST
+                                viewModel.setCatalogSubScreen(AppSubScreen.LIST)
                             },
                             onToggleFav = {
                                 viewModel.toggleFavorite(goat.id)
@@ -654,12 +648,12 @@ fun CatalogScreen(
                                 viewModel.sendMessage("[PRODUCT_CARD]${goat.id}", recipientUid = targetEmail)
                             },
                             onOrder = {
-                                currentSubScreen = CatalogSubScreen.BOOKING_STEP1
+                                viewModel.setCatalogSubScreen(AppSubScreen.BOOKING_STEP1)
                             }
                         )
                     }
                 }
-                CatalogSubScreen.BOOKING_STEP1 -> {
+                AppSubScreen.BOOKING_STEP1 -> {
                     selectedGoat?.let { goat ->
                         BookingStep1View(
                             goat = goat,
@@ -671,19 +665,19 @@ fun CatalogScreen(
                             onEmailChange = { buyerEmail = it },
                             notes = buyerNotes,
                             onNotesChange = { buyerNotes = it },
-                            onBack = { currentSubScreen = CatalogSubScreen.DETAIL },
+                            onBack = { viewModel.setCatalogSubScreen(AppSubScreen.DETAIL) },
                             onNext = {
                                 if (buyerName.isBlank() || buyerPhone.isBlank()) {
                                     Toast.makeText(context, "Nama Lengkap dan Nomor HP harus diisi!", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    currentSubScreen = CatalogSubScreen.BOOKING_STEP2
+                                    viewModel.setCatalogSubScreen(AppSubScreen.BOOKING_STEP2)
                                 }
                             }
                         )
                     }
                 }
 
-                CatalogSubScreen.BOOKING_STEP2 -> {
+                AppSubScreen.BOOKING_STEP2 -> {
                     selectedGoat?.let { goat ->
                         BookingStep2View(
                             selectedDate = selectedDate,
@@ -706,13 +700,13 @@ fun CatalogScreen(
                             },
                             selectedTimeSlot = selectedTimeSlot,
                             onTimeSlotSelect = { selectedTimeSlot = it },
-                            onBack = { currentSubScreen = CatalogSubScreen.BOOKING_STEP1 },
-                            onNext = { currentSubScreen = CatalogSubScreen.BOOKING_STEP3 }
+                            onBack = { viewModel.setCatalogSubScreen(AppSubScreen.BOOKING_STEP1) },
+                            onNext = { viewModel.setCatalogSubScreen(AppSubScreen.BOOKING_STEP3) }
                         )
                     }
                 }
 
-                CatalogSubScreen.BOOKING_STEP3 -> {
+                AppSubScreen.BOOKING_STEP3 -> {
                     selectedGoat?.let { goat ->
                         BookingStep3View(
                             goat = goat,
@@ -722,7 +716,7 @@ fun CatalogScreen(
                             date = selectedDate,
                             timeSlot = selectedTimeSlot,
                             notes = buyerNotes,
-                            onBack = { currentSubScreen = CatalogSubScreen.BOOKING_STEP2 },
+                            onBack = { viewModel.setCatalogSubScreen(AppSubScreen.BOOKING_STEP2) },
                             onNext = {
                                 // Create order and transition to success
                                 viewModel.createOrder(
@@ -747,13 +741,13 @@ fun CatalogScreen(
                                     "260620"
                                 }
                                 bookingCode = "AG-$formattedDate-001"
-                                currentSubScreen = CatalogSubScreen.BOOKING_SUCCESS
+                                viewModel.setCatalogSubScreen(AppSubScreen.BOOKING_SUCCESS)
                             }
                         )
                     }
                 }
 
-                CatalogSubScreen.BOOKING_SUCCESS -> {
+                AppSubScreen.BOOKING_SUCCESS -> {
                     BookingSuccessView(
                         bookingCode = bookingCode,
                         onCopyCode = {
@@ -761,11 +755,11 @@ fun CatalogScreen(
                             Toast.makeText(context, "Kode Booking disalin!", Toast.LENGTH_SHORT).show()
                         },
                         onViewOrders = {
-                            currentSubScreen = CatalogSubScreen.LIST
+                            viewModel.setCatalogSubScreen(AppSubScreen.LIST)
                             viewModel.setTab(com.agrogoat.core.shared.AppTab.PESANAN)
                         },
                         onBackToHome = {
-                            currentSubScreen = CatalogSubScreen.LIST
+                            viewModel.setCatalogSubScreen(AppSubScreen.LIST)
                             viewModel.setTab(com.agrogoat.core.shared.AppTab.BERANDA)
                         }
                     )

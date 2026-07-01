@@ -32,17 +32,11 @@ import com.agrogoat.core.designsystem.components.*
 import com.agrogoat.core.designsystem.components.*
 import com.agrogoat.core.designsystem.components.detail.GoatDetailView
 import com.agrogoat.core.shared.AppTab
+import com.agrogoat.core.shared.AppSubScreen
 import com.agrogoat.core.shared.AgroGoatViewModel
 import kotlinx.coroutines.launch
 
-enum class HomeSubScreen {
-    HOME,
-    DETAIL,
-    BOOKING_STEP1,
-    BOOKING_STEP2,
-    BOOKING_STEP3,
-    BOOKING_SUCCESS
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,18 +87,14 @@ fun HomeScreen(
     var selectedGenderFilter by remember { mutableStateOf("Semua") }
 
     // Sheet states
-    var currentSubScreen by remember {
-        mutableStateOf(HomeSubScreen.HOME)
-    }
+    val currentSubScreen by viewModel.homeSubScreen.collectAsState()
 
-    var selectedGoat by remember {
-        mutableStateOf<GoatItem?>(null)
-    }
+    val selectedGoat by viewModel.homeSelectedGoat.collectAsState()
 
 
     LaunchedEffect(currentSubScreen, currentTab) {
         if (currentTab == AppTab.BERANDA) {
-            viewModel.setHideBottomBar(currentSubScreen != HomeSubScreen.HOME)
+            viewModel.setHideBottomBar(currentSubScreen != AppSubScreen.LIST)
         }
     }
 
@@ -121,7 +111,7 @@ fun HomeScreen(
 
     when (currentSubScreen) {
 
-        HomeSubScreen.HOME -> {
+        AppSubScreen.LIST -> {
             Scaffold(
                 modifier = modifier.fillMaxSize(),
                 containerColor = Color(0xFFF5F6F5) // light gray dashboard background
@@ -331,8 +321,8 @@ fun HomeScreen(
                                 goat = goat,
                                 onFavoriteToggle = { viewModel.toggleFavorite(goat.id) },
                                 onClick = {
-                                    selectedGoat = goat
-                                    currentSubScreen = HomeSubScreen.DETAIL
+                                    viewModel.setHomeSelectedGoat(goat)
+                                    viewModel.setHomeSubScreen(AppSubScreen.DETAIL)
                                 }
                             )
                         }
@@ -341,7 +331,7 @@ fun HomeScreen(
             }
         }
 
-        HomeSubScreen.DETAIL -> {
+        AppSubScreen.DETAIL -> {
             selectedGoat?.let { goat ->
                 val sellerProfile = goat.sellerEmail?.lowercase()?.let { usersProfiles[it] }
                     ?: goat.sellerUid?.let { usersProfiles[it] }
@@ -361,7 +351,7 @@ fun HomeScreen(
                     sellerLat = sellerLat,
                     sellerLng = sellerLng,
                     onBack = {
-                        currentSubScreen = HomeSubScreen.HOME
+                        viewModel.setHomeSubScreen(AppSubScreen.LIST)
                     },
                     onToggleFav = {
                         viewModel.toggleFavorite(goat.id)
@@ -373,13 +363,13 @@ fun HomeScreen(
                         viewModel.sendMessage("[PRODUCT_CARD]${goat.id}", recipientUid = emailTujuan)
                     },
                     onOrder = {
-                        currentSubScreen = HomeSubScreen.BOOKING_STEP1
+                        viewModel.setHomeSubScreen(AppSubScreen.BOOKING_STEP1)
                     }
                 )
             }
         }
 
-        HomeSubScreen.BOOKING_STEP1 -> {
+        AppSubScreen.BOOKING_STEP1 -> {
             selectedGoat?.let { goat ->
                 BookingStep1View(
                     goat = goat,
@@ -391,19 +381,19 @@ fun HomeScreen(
                     onEmailChange = { buyerEmail = it },
                     notes = buyerNotes,
                     onNotesChange = { buyerNotes = it },
-                    onBack = { currentSubScreen = HomeSubScreen.DETAIL },
+                    onBack = { viewModel.setHomeSubScreen(AppSubScreen.DETAIL) },
                     onNext = {
                         if (buyerName.isBlank() || buyerPhone.isBlank()) {
                             Toast.makeText(context, "Nama Lengkap dan Nomor HP harus diisi!", Toast.LENGTH_SHORT).show()
                         } else {
-                            currentSubScreen = HomeSubScreen.BOOKING_STEP2
+                            viewModel.setHomeSubScreen(AppSubScreen.BOOKING_STEP2)
                         }
                     }
                 )
             }
         }
 
-        HomeSubScreen.BOOKING_STEP2 -> {
+        AppSubScreen.BOOKING_STEP2 -> {
             selectedGoat?.let { goat ->
                 BookingStep2View(
                     selectedDate = selectedDate,
@@ -426,13 +416,13 @@ fun HomeScreen(
                     },
                     selectedTimeSlot = selectedTimeSlot,
                     onTimeSlotSelect = { selectedTimeSlot = it },
-                    onBack = { currentSubScreen = HomeSubScreen.BOOKING_STEP1 },
-                    onNext = { currentSubScreen = HomeSubScreen.BOOKING_STEP3 }
+                    onBack = { viewModel.setHomeSubScreen(AppSubScreen.BOOKING_STEP1) },
+                    onNext = { viewModel.setHomeSubScreen(AppSubScreen.BOOKING_STEP3) }
                 )
             }
         }
 
-        HomeSubScreen.BOOKING_STEP3 -> {
+        AppSubScreen.BOOKING_STEP3 -> {
             selectedGoat?.let { goat ->
                 BookingStep3View(
                     goat = goat,
@@ -442,7 +432,7 @@ fun HomeScreen(
                     date = selectedDate,
                     timeSlot = selectedTimeSlot,
                     notes = buyerNotes,
-                    onBack = { currentSubScreen = HomeSubScreen.BOOKING_STEP2 },
+                    onBack = { viewModel.setHomeSubScreen(AppSubScreen.BOOKING_STEP2) },
                     onNext = {
                         viewModel.createOrder(
                             goat = goat,
@@ -464,13 +454,13 @@ fun HomeScreen(
                             "260620"
                         }
                         bookingCode = "AG-$formattedDate-001"
-                        currentSubScreen = HomeSubScreen.BOOKING_SUCCESS
+                        viewModel.setHomeSubScreen(AppSubScreen.BOOKING_SUCCESS)
                     }
                 )
             }
         }
 
-        HomeSubScreen.BOOKING_SUCCESS -> {
+        AppSubScreen.BOOKING_SUCCESS -> {
             val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
             BookingSuccessView(
                 bookingCode = bookingCode,
@@ -479,11 +469,11 @@ fun HomeScreen(
                     Toast.makeText(context, "Kode Booking disalin!", Toast.LENGTH_SHORT).show()
                 },
                 onViewOrders = {
-                    currentSubScreen = HomeSubScreen.HOME
+                    viewModel.setHomeSubScreen(AppSubScreen.LIST)
                     viewModel.setTab(AppTab.PESANAN)
                 },
                 onBackToHome = {
-                    currentSubScreen = HomeSubScreen.HOME
+                    viewModel.setHomeSubScreen(AppSubScreen.LIST)
                     viewModel.setTab(AppTab.BERANDA)
                 }
             )
